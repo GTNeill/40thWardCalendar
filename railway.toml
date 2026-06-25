@@ -1,0 +1,13 @@
+[build]
+builder = "nixpacks"
+buildCommand = "bun install && bun run build:web"
+
+[deploy]
+startCommand = "bun run packages/web/src/server.ts"
+healthcheckPath = "/api/categories"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[environments.production.deploy]
+numReplicas = 1
