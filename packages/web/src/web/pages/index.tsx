@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   RefreshCw, LayoutGrid, CalendarDays, AlertCircle,
-  ChevronLeft, ChevronRight, Sun, Moon
+  ChevronLeft, ChevronRight, Sun, Moon, ZoomIn, ZoomOut
 } from "lucide-react";
 import { useEvents } from "../hooks/useEvents";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,11 +14,132 @@ import { useTheme } from "../lib/theme";
 
 type Tab = "cards" | "timeline";
 
+const ZOOM_MIN = 75;
+const ZOOM_MAX = 150;
+const ZOOM_STEP = 5;
+const ZOOM_DEFAULT = 100;
+
+/* ─── Vertical zoom slider — scales content text/layout via CSS zoom ─── */
+function ZoomSlider({
+  zoom,
+  onChange,
+  top,
+  theme,
+}: {
+  zoom: number;
+  onChange: (z: number) => void;
+  top: number;
+  theme: ReturnType<typeof useTheme>["theme"];
+}) {
+  return (
+    <div
+      title={`Content zoom: ${zoom}%`}
+      style={{
+        position: "fixed",
+        top: top + 16,
+        right: 24,
+        zIndex: 20,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "8px",
+        padding: "12px 8px",
+        borderRadius: 12,
+        background: theme.surface,
+        border: `1px solid ${theme.border}`,
+        boxShadow: theme.mode === "dark" ? "0 4px 14px rgba(0,0,0,0.4)" : "0 4px 14px rgba(0,0,0,0.08)",
+      }}
+    >
+      <button
+        onClick={() => onChange(Math.min(ZOOM_MAX, zoom + ZOOM_STEP))}
+        title="Increase text size"
+        aria-label="Increase text size"
+        disabled={zoom >= ZOOM_MAX}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "center",
+          width: 26, height: 26, borderRadius: 6, border: "none",
+          background: "transparent", color: theme.textMuted,
+          cursor: zoom >= ZOOM_MAX ? "not-allowed" : "pointer",
+          opacity: zoom >= ZOOM_MAX ? 0.35 : 1,
+        }}
+      >
+        <ZoomIn size={15} />
+      </button>
+
+      <input
+        type="range"
+        min={ZOOM_MIN}
+        max={ZOOM_MAX}
+        step={ZOOM_STEP}
+        value={zoom}
+        onChange={e => onChange(Number(e.target.value))}
+        title={`Content zoom: ${zoom}%`}
+        aria-label="Content text zoom level"
+        // Vertical range input: -webkit-appearance covers Chrome/Safari/Edge,
+        // orient="vertical" (via prop spread) covers Firefox.
+        {...({ orient: "vertical" } as any)}
+        style={{
+          WebkitAppearance: "slider-vertical" as any,
+          width: 20,
+          height: 110,
+          accentColor: theme.teal,
+          cursor: "pointer",
+          background: "transparent",
+        }}
+      />
+
+      <button
+        onClick={() => onChange(Math.max(ZOOM_MIN, zoom - ZOOM_STEP))}
+        title="Decrease text size"
+        aria-label="Decrease text size"
+        disabled={zoom <= ZOOM_MIN}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "center",
+          width: 26, height: 26, borderRadius: 6, border: "none",
+          background: "transparent", color: theme.textMuted,
+          cursor: zoom <= ZOOM_MIN ? "not-allowed" : "pointer",
+          opacity: zoom <= ZOOM_MIN ? 0.35 : 1,
+        }}
+      >
+        <ZoomOut size={15} />
+      </button>
+
+      <div
+        onClick={() => onChange(ZOOM_DEFAULT)}
+        title="Reset zoom to 100%"
+        style={{
+          fontSize: "0.62rem",
+          fontWeight: 700,
+          color: theme.textMuted,
+          cursor: "pointer",
+          userSelect: "none",
+          letterSpacing: "0.02em",
+        }}
+      >
+        {zoom}%
+      </div>
+    </div>
+  );
+}
+
 export default function Index() {
   const { theme, toggle } = useTheme();
   const [tab, setTab] = useState<Tab>("cards");
   const [unit, setUnit] = useState<RangeUnit>("month");
   const [offset, setOffset] = useState(0);
+  const [zoom, setZoom] = useState(ZOOM_DEFAULT);
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(140);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const update = () => setHeaderHeight(el.offsetHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Cards use rolling range (today → +week/month); Calendar grid uses calendar-aligned range
   const cardRange = getRollingRange(unit, offset);
@@ -60,6 +181,7 @@ export default function Index() {
 
       {/* ── Header ── */}
       <header
+        ref={headerRef}
         className="sticky top-0 z-10 border-b"
         style={{
           background: theme.bgHeader,
@@ -125,6 +247,7 @@ export default function Index() {
                 <button
                   key={u}
                   onClick={() => { setUnit(u); setOffset(0); }}
+                  title={u === "week" ? "Show one week at a time" : "Show one month at a time"}
                   style={{
                     fontFamily: theme.fontBody,
                     padding: "9px 20px",
@@ -155,7 +278,7 @@ export default function Index() {
                 className="flex items-center justify-center rounded border"
                 style={{ ...btnBase, width: 40, height: 40 }}
                 onMouseEnter={onEnter} onMouseLeave={onLeave}
-                title="Previous"
+                title={unit === "week" ? "Previous week" : "Previous month"}
               >
                 <ChevronLeft size={16} />
               </button>
@@ -171,7 +294,7 @@ export default function Index() {
                   fontSize: "0.8rem",
                 }}
                 onMouseEnter={onEnter} onMouseLeave={onLeave}
-                title="Today"
+                title="Jump back to today"
               >
                 Today
               </button>
@@ -180,7 +303,7 @@ export default function Index() {
                 className="flex items-center justify-center rounded border"
                 style={{ ...btnBase, width: 40, height: 40 }}
                 onMouseEnter={onEnter} onMouseLeave={onLeave}
-                title="Next"
+                title={unit === "week" ? "Next week" : "Next month"}
               >
                 <ChevronRight size={16} />
               </button>
@@ -194,12 +317,13 @@ export default function Index() {
               style={{ borderColor: theme.border }}
             >
               {([
-                { id: "cards",    icon: <LayoutGrid size={14} />,  label: "Cards"    },
-                { id: "timeline", icon: <CalendarDays size={14} />, label: "Calendar" },
-              ] as const).map(({ id, icon, label }) => (
+                { id: "cards",    icon: <LayoutGrid size={14} />,  label: "Cards",    title: "Card view — events grouped by category" },
+                { id: "timeline", icon: <CalendarDays size={14} />, label: "Calendar", title: "Calendar/timeline view" },
+              ] as const).map(({ id, icon, label, title }) => (
                 <button
                   key={id}
                   onClick={() => setTab(id)}
+                  title={title}
                   className="flex items-center"
                   style={{
                     gap: "7px",
@@ -257,8 +381,11 @@ export default function Index() {
         </div>
       </header>
 
+      {/* ── Zoom slider — floats over the content page, not the header ── */}
+      <ZoomSlider zoom={zoom} onChange={setZoom} top={headerHeight} theme={theme} />
+
       {/* ── Main ── */}
-      <main style={{ maxWidth: 1152, margin: "0 auto", padding: "40px 48px" }}>
+      <main style={{ maxWidth: 1152, margin: "0 auto", padding: "40px 48px", zoom: `${zoom}%` as any }}>
 
         {/* Error */}
         {isError && (

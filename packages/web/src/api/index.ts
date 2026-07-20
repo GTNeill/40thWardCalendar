@@ -35,31 +35,60 @@ function buildMatcher(keywords: string[]): (title: string, desc?: string) => boo
   return (t: string) => rx.test(t);
 }
 
+// Built-in safety net — used only if categories.json is ever unreadable/empty,
+// so the site never crashes trying to categorize an event.
+const FALLBACK_CATEGORY: CategoryDef = {
+  key: "other",
+  label: "Other",
+  icon: "📌",
+  color: "#5A5A5A",
+  group: "community",
+  order: 999,
+  keywords: [],
+  match: () => true,
+};
+
 function loadCategories(): CategoryDef[] {
   try {
     const raw = fs.readFileSync(DATA_FILE, "utf-8");
     const parsed: Omit<CategoryDef, "match">[] = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      throw new Error("categories.json parsed to an empty/invalid list");
+    }
     return parsed
       .sort((a, b) => a.order - b.order)
       .map(c => ({ ...c, match: buildMatcher(c.keywords) }));
   } catch (e) {
-    console.error("Failed to load categories.json, using empty list:", e);
-    return [];
+    console.error("Failed to load categories.json, keeping previous list:", e);
+    // Never return an empty list — fall back to whatever was last loaded
+    // successfully, or a single safe "other" category if this is the very
+    // first load attempt.
+    return runtimeCategories && runtimeCategories.length > 0
+      ? runtimeCategories
+      : [FALLBACK_CATEGORY];
   }
 }
 
 function saveCategories(cats: Omit<CategoryDef, "match">[]): void {
   fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-  fs.writeFileSync(DATA_FILE, JSON.stringify(cats, null, 2), "utf-8");
+  // Write atomically: write to a temp file then rename, so a concurrent
+  // read from another request never sees a half-written/truncated file.
+  const tmpFile = `${DATA_FILE}.tmp-${process.pid}-${Date.now()}`;
+  fs.writeFileSync(tmpFile, JSON.stringify(cats, null, 2), "utf-8");
+  fs.renameSync(tmpFile, DATA_FILE);
 }
 
-let runtimeCategories: CategoryDef[] = loadCategories();
+// Initialize with the safe fallback first so loadCategories() always has
+// something valid to reference in its catch branch, even on the very first call.
+let runtimeCategories: CategoryDef[] = [FALLBACK_CATEGORY];
+runtimeCategories = loadCategories();
 
 function categorize(title: string, description: string = ""): CategoryDef {
   for (const cat of runtimeCategories) {
     if (cat.match(title, description)) return cat;
   }
-  return runtimeCategories[runtimeCategories.length - 1];
+  // Guaranteed non-empty due to loadCategories() never returning [].
+  return runtimeCategories[runtimeCategories.length - 1] ?? FALLBACK_CATEGORY;
 }
 
 // ── Fetch public iCal and parse events ───────────────────────────────────────
@@ -85,7 +114,37 @@ function getField(block: string, key: string): string {
   return m ? icsVal(m[1]) : "";
 }
 
-function parseICSDate(raw: string, _blockForTZ?: string): { date: Date; allDay: boolean } {
+// Extract the TZID parameter from a raw ICS property line, e.g.
+// "DTSTART;TZID=America/Chicago:20260601T150000" → "America/Chicago"
+function getLineTzid(line: string): string | undefined {
+  return line.match(/TZID=([^:;]+)/)?.[1];
+}
+
+// Convert a wall-clock date/time meant to represent a moment in `timeZone`
+// into the correct absolute UTC Date, automatically accounting for whatever
+// DST rules apply on that specific date (no hardcoded UTC offset).
+function zonedWallClockToUTC(isoNaive: string, timeZone: string): Date {
+  const asUTC = new Date(isoNaive + "Z");
+  if (Number.isNaN(asUTC.getTime())) return asUTC;
+  const tzStr  = asUTC.toLocaleString("en-US", { timeZone });
+  const utcStr = asUTC.toLocaleString("en-US", { timeZone: "UTC" });
+  const offsetMs = new Date(utcStr).getTime() - new Date(tzStr).getTime();
+  return new Date(asUTC.getTime() + offsetMs);
+}
+
+// Builds the same "naive digits as if UTC" ISO string that rrule.js produces
+// internally for floating DTSTART values — used only to match EXDATE/
+// RECURRENCE-ID exclusions against RRULE occurrences, both in that same
+// (not-yet-timezone-corrected) representation.
+function naiveISOWithZ(raw: string): string {
+  const val = raw.replace(/.*:/, "");
+  const iso = `${val.slice(0,4)}-${val.slice(4,6)}-${val.slice(6,8)}T${val.slice(9,11)}:${val.slice(11,13)}:${val.slice(13,15)}.000Z`;
+  return iso;
+}
+
+const DEFAULT_TZ = "America/Chicago";
+
+function parseICSDate(raw: string, tzid?: string): { date: Date; allDay: boolean } {
   if (!raw) return { date: new Date(0), allDay: false };
   const isAllDay = /VALUE=DATE/.test(raw) || /^\d{8}$/.test(raw.replace(/.*:/, ""));
   const val = raw.replace(/.*:/, "");
@@ -98,7 +157,11 @@ function parseICSDate(raw: string, _blockForTZ?: string): { date: Date; allDay: 
   if (val.endsWith("Z")) {
     return { date: new Date(iso + "Z"), allDay: false };
   }
-  return { date: new Date(iso), allDay: false };
+  // Floating/local time (e.g. "DTSTART;TZID=America/Chicago:20260601T150000")
+  // — convert the wall-clock digits to the correct UTC instant using the
+  // event's own TZID, falling back to Central time since that's this
+  // calendar's home timezone.
+  return { date: zonedWallClockToUTC(iso, tzid || DEFAULT_TZ), allDay: false };
 }
 
 function toChicagoISO(d: Date): string {
@@ -113,13 +176,15 @@ function parseICS(ics: string, calendarName: string, calendarId: string, timeMin
   const overrides = new Map<string, Set<string>>();
   for (let i = 1; i < blocks.length; i++) {
     const block = blocks[i];
+    const recIdLine = block.match(/^RECURRENCE-ID[^\r\n]*/m)?.[0] ?? "";
     const recId = getField(block, "RECURRENCE-ID");
     if (!recId) continue;
     const uid = getField(block, "UID");
     if (!uid) continue;
-    const { date } = parseICSDate(recId);
     if (!overrides.has(uid)) overrides.set(uid, new Set());
-    overrides.get(uid)!.add(date.toISOString());
+    // Use the naive-digits representation so it matches occ.toISOString()
+    // from rrule.js later, regardless of the RECURRENCE-ID's own TZID.
+    overrides.get(uid)!.add(naiveISOWithZ(recIdLine || recId));
   }
 
   for (let i = 1; i < blocks.length; i++) {
@@ -138,9 +203,11 @@ function parseICS(ics: string, calendarName: string, calendarId: string, timeMin
     const dtEndLine   = block.match(/^DTEND[^\r\n]*/m)?.[0] ?? "";
     const dtStartRaw  = dtStartLine.replace(/^DTSTART[^:]*:/, "").trim();
     const dtEndRaw    = dtEndLine.replace(/^DTEND[^:]*:/, "").trim();
+    const dtStartTzid = getLineTzid(dtStartLine);
+    const dtEndTzid   = getLineTzid(dtEndLine);
 
-    const startParsed = parseICSDate(dtStartRaw, block);
-    const endParsed   = parseICSDate(dtEndRaw, block);
+    const startParsed = parseICSDate(dtStartRaw, dtStartTzid);
+    const endParsed   = parseICSDate(dtEndRaw, dtEndTzid);
     const duration    = endParsed.date.getTime() - startParsed.date.getTime();
 
     const makeEvent = (start: Date, end: Date, instanceUid: string) => {
@@ -172,9 +239,10 @@ function parseICS(ics: string, calendarName: string, calendarId: string, timeMin
     try {
       const excludedISOs = new Set<string>();
       if (exdateStr) {
+        // EXDATE may contain multiple comma-separated values sharing the
+        // property's TZID param.
         exdateStr.split(",").forEach(ex => {
-          const { date } = parseICSDate(ex.trim());
-          excludedISOs.add(date.toISOString());
+          excludedISOs.add(naiveISOWithZ(ex.trim()));
         });
       }
       const ov = overrides.get(uid);
@@ -189,13 +257,16 @@ function parseICS(ics: string, calendarName: string, calendarId: string, timeMin
       );
 
       for (const occ of occurrences) {
+        if (excludedISOs.has(occ.toISOString())) continue;
         let start = occ;
         if (!dtStartRaw.endsWith("Z")) {
+          // occ's ISO digits are the naive wall-clock time (rrule.js treats
+          // floating DTSTART as UTC internally) — convert those digits to
+          // the correct UTC instant using the event's real TZID.
           const iso = occ.toISOString().replace("Z", "");
-          start = new Date(iso);
+          start = zonedWallClockToUTC(iso, dtStartTzid || DEFAULT_TZ);
         }
         if (start < timeMin || start > timeMax) continue;
-        if (excludedISOs.has(occ.toISOString())) continue;
         const end = new Date(start.getTime() + duration);
         const instanceUid = `${uid}_${start.toISOString()}`;
         events.push(makeEvent(start, end, instanceUid));

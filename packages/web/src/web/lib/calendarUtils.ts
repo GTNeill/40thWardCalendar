@@ -17,7 +17,7 @@ export interface CalEvent {
 
 export const CATEGORY_ORDER = [
   "ward", "zoning", "publicSafety", "community", "environment",
-  "arts", "health", "education", "immigration", "food", "celebrations", "social", "housing", "other"
+  "arts", "health", "education", "immigration", "food", "celebrations", "social", "housing", "ainslieArts", "other"
 ];
 
 export const CATEGORY_GROUPS: { label: string; keys: string[] }[] = [
@@ -27,7 +27,7 @@ export const CATEGORY_GROUPS: { label: string; keys: string[] }[] = [
   },
   {
     label: "Your Community",
-    keys: ["publicSafety", "community", "environment", "arts", "health", "education", "food", "celebrations", "social", "other"],
+    keys: ["publicSafety", "community", "environment", "arts", "health", "education", "food", "celebrations", "social", "ainslieArts", "other"],
   },
 ];
 
