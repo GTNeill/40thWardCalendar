@@ -1,5 +1,5 @@
 import type { CalEvent } from "../lib/calendarUtils";
-import { fmtDayNum, fmtMonthShort, fmtWeekday, fmtTime, fmtDuration } from "../lib/calendarUtils";
+import { fmtDayNum, fmtMonthShort, fmtWeekday, fmtTime, fmtDuration, linkifyDescription, googleMapsUrl } from "../lib/calendarUtils";
 import { MapPin, Clock, ExternalLink, User, Calendar, AlarmClock } from "lucide-react";
 import { useTheme } from "../lib/theme";
 /**
@@ -39,7 +39,11 @@ export default function EventDetailCard({ ev }: { ev: CalEvent }) {
         overflow: "hidden",
         cursor: ev.htmlLink ? "pointer" : "default",
       }}
-      onClick={() => { if (ev.htmlLink) window.open(ev.htmlLink, "_blank", "noopener,noreferrer"); }}
+      onClick={(e) => {
+        // Don't hijack clicks on nested links (location, description links)
+        if ((e.target as HTMLElement).closest("a")) return;
+        if (ev.htmlLink) window.open(ev.htmlLink, "_blank", "noopener,noreferrer");
+      }}
     >
       {/* Colour bar */}
       <div style={{ height: 6, background: categoryColor }} />
@@ -133,17 +137,29 @@ export default function EventDetailCard({ ev }: { ev: CalEvent }) {
           </div>
         </div>
 
-        {/* Location */}
+        {/* Location — clickable, opens Google Maps */}
         {ev.location && (
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
             <MapPin size={15} style={{ color: categoryColor, flexShrink: 0, marginTop: 2 }} />
-            <div style={{ fontSize: "0.85rem", color: theme.textMuted, lineHeight: 1.4 }}>
+            <a
+              href={googleMapsUrl(ev.location)}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: "0.85rem",
+                color: theme.textMuted,
+                lineHeight: 1.4,
+                textDecoration: "none",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = categoryColor; e.currentTarget.style.textDecoration = "underline"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.textDecoration = "none"; }}
+            >
               {ev.location}
-            </div>
+            </a>
           </div>
         )}
 
-        {/* Description */}
+        {/* Description — links inside (markdown or raw HTML) become clickable */}
         {ev.description && (
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
             <AlarmClock size={15} style={{ color: categoryColor, flexShrink: 0, marginTop: 2 }} />
@@ -158,8 +174,7 @@ export default function EventDetailCard({ ev }: { ev: CalEvent }) {
                 WebkitLineClamp: 4,
                 WebkitBoxOrient: "vertical",
               }}
-              // strip HTML tags from description
-              dangerouslySetInnerHTML={{ __html: ev.description.replace(/<[^>]*>/g, " ").trim() }}
+              dangerouslySetInnerHTML={{ __html: linkifyDescription(ev.description, categoryColor) }}
             />
           </div>
         )}

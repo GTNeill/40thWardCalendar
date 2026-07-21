@@ -170,3 +170,90 @@ export function timeSince(iso: string): string {
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
 }
+
+// ── Description link handling ─────────────────────────────────────────────
+// Google Calendar's public iCal export produces messy description text —
+// sometimes clean markdown links `[text](url)`, sometimes a markdown link
+// wrapping a raw HTML anchor (whose href is often a Google redirect wrapper
+// like https://www.google.com/url?q=REAL_URL&sa=D&...). This normalizes all
+// of that into clean <a> tags, auto-linkifies any remaining bare URLs, and
+// strips any other stray HTML so nothing else can break the layout.
+
+function unwrapGoogleRedirect(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname === "www.google.com" && u.pathname === "/url" && u.searchParams.has("q")) {
+      return u.searchParams.get("q")!;
+    }
+  } catch {
+    // not a valid absolute URL — leave as-is
+  }
+  return url;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function safeAnchor(label: string, href: string, color: string): string {
+  const cleanHref = unwrapGoogleRedirect(href);
+  if (!/^https?:\/\//i.test(cleanHref)) return escapeHtml(label);
+  const style = `color:${color};text-decoration:underline;font-weight:600;`;
+  return `<a href="${escapeHtml(cleanHref)}" target="_blank" rel="noopener noreferrer" style="${style}">${escapeHtml(label)}</a>`;
+}
+
+export function linkifyDescription(raw: string, linkColor: string = "#147671"): string {
+  if (!raw) return "";
+
+  // Placeholder-based pipeline: pull out every link form we recognize,
+  // replacing each with a token, so later steps (bare-URL linkify, tag
+  // stripping) never touch already-processed links.
+  const placeholders: string[] = [];
+  const stash = (html: string) => {
+    placeholders.push(html);
+    return `\u0000${placeholders.length - 1}\u0000`;
+  };
+
+  let text = raw;
+
+  // 1) Markdown link wrapping a raw HTML anchor:
+  //    [Display Text](<a href="URL" ...>anything</a>)
+  text = text.replace(
+    /\[([^\]]+)\]\(\s*<a\s+href="([^"]+)"[^>]*>[^<]*<\/a>\s*\)/gi,
+    (_m, label, href) => stash(safeAnchor(label, href, linkColor))
+  );
+
+  // 2) Plain markdown link: [Display Text](https://example.com)
+  text = text.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/gi,
+    (_m, label, href) => stash(safeAnchor(label, href, linkColor))
+  );
+
+  // 3) Any remaining raw HTML anchor tags — keep them, just normalize
+  //    target/rel and unwrap Google redirects.
+  text = text.replace(
+    /<a\s+href="([^"]+)"[^>]*>([^<]*)<\/a>/gi,
+    (_m, href, label) => stash(safeAnchor(label || href, href, linkColor))
+  );
+
+  // 4) Strip any other stray HTML tags (safe now — real links are stashed).
+  text = text.replace(/<[^>]*>/g, " ");
+
+  // 5) Auto-linkify any bare URLs left in the plain text.
+  text = text.replace(
+    /(https?:\/\/[^\s<)]+)/gi,
+    (url) => stash(safeAnchor(url, url, linkColor))
+  );
+
+  // 6) Re-insert stashed links, escaping everything else.
+  const parts = text.split(/\u0000(\d+)\u0000/g);
+  return parts
+    .map((part, i) => (i % 2 === 1 ? placeholders[Number(part)] : escapeHtml(part)))
+    .join("")
+    .trim();
+}
+
+export function googleMapsUrl(location: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+}
+
