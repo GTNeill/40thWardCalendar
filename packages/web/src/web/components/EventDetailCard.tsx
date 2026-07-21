@@ -22,7 +22,7 @@ export default function EventDetailCard({ ev }: { ev: CalEvent }) {
     <div
       style={{
         width: "100%",
-        maxWidth: 640,
+        maxWidth: 800,
         background: theme.popupBg,
         border: `1.5px solid ${theme.popupBorder}`,
         borderRadius: 14,
