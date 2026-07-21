@@ -28,6 +28,7 @@ Every event pulled from the Google Calendar feeds gets automatically sorted into
 - The icon and color shown next to the event
 - Whether it's grouped under **"Your Government"** or **"Your Community"**
 - Whether it appears as one of the filter buttons above the event list
+- The icon/color/label shown on its card when it turns up in **search results**
 
 ---
 
@@ -148,3 +149,9 @@ The last keyword (`\bainslie\b`) is a catch-all safety net — it matches any ev
 ## Questions or issues
 
 If categories aren't loading, events aren't refreshing, or the admin page looks broken, that's likely a hosting/server issue rather than something fixable from this page — reach out to whoever manages the deployment.
+
+---
+
+## Current categories (for reference)
+
+As of this writing there are 15 categories, in display order: Ward Office, Zoning & Development, Public Safety, Community Events, Environment & Parks, Arts & Culture, Health & Wellness, Education & Learning, Immigration & Rights, Food & Markets, Celebrations & Holidays, Social & Gatherings, Housing & Property, Ainslie Arts Plaza, and the catch-all Other. This list will drift as categories are added/edited/removed from `/admincat` — the admin page is always the source of truth, not this document.
