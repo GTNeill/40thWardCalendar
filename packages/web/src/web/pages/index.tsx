@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   RefreshCw, LayoutGrid, CalendarDays, AlertCircle,
-  ChevronLeft, ChevronRight, Sun, Moon, ZoomIn, ZoomOut
+  ChevronLeft, ChevronRight, Sun, Moon, ZoomIn, ZoomOut, Search, X
 } from "lucide-react";
 import { useEvents } from "../hooks/useEvents";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,6 +9,7 @@ import CategoryCards from "../components/CategoryCards";
 import CalendarGrid from "../components/CalendarGrid";
 import SkeletonCards from "../components/SkeletonCards";
 import SkeletonTimeline from "../components/SkeletonTimeline";
+import SearchResults from "../components/SearchResults";
 import { timeSince, getRange, getRollingRange, fmtRangeLabel, toISO, type RangeUnit } from "../lib/calendarUtils";
 import { useTheme } from "../lib/theme";
 
@@ -128,6 +129,7 @@ export default function Index() {
   const [unit, setUnit] = useState<RangeUnit>("month");
   const [offset, setOffset] = useState(0);
   const [zoom, setZoom] = useState(ZOOM_DEFAULT);
+  const [search, setSearch] = useState("");
   const headerRef = useRef<HTMLElement>(null);
   const [headerHeight, setHeaderHeight] = useState(140);
 
@@ -418,9 +420,61 @@ export default function Index() {
           </div>
         )}
 
+        {/* Search — filters events already loaded for the current view */}
+        <div style={{ marginBottom: 20 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: `1.5px solid ${search ? theme.teal : theme.border}`,
+              background: theme.surface,
+              transition: "border-color 0.15s",
+              maxWidth: 420,
+            }}
+          >
+            <Search size={16} style={{ color: theme.textMuted, flexShrink: 0 }} />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search events in this view…"
+              style={{
+                flex: 1,
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                color: theme.textPrimary,
+                fontFamily: theme.fontBody,
+                fontSize: "0.85rem",
+                minWidth: 0,
+              }}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                title="Clear search"
+                aria-label="Clear search"
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 22, height: 22, borderRadius: 6, border: "none",
+                  background: "transparent", color: theme.textMuted, cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Content */}
         <div key={`${tab}-${unit}-${offset}`}>
-          {tab === "cards" ? (
+          {search.trim() ? (
+            data ? <SearchResults query={search} events={data.events} /> : null
+          ) : tab === "cards" ? (
             isLoading ? <SkeletonCards /> : data ? <CategoryCards grouped={data.grouped} /> : null
           ) : (
             isLoading ? <SkeletonTimeline /> : data ? <CalendarGrid events={data.events} start={start} end={end} unit={unit} /> : null
