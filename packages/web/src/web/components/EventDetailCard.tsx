@@ -8,6 +8,14 @@ import { useTheme } from "../lib/theme";
  * (CategoryCards/CalendarGrid EventPopup) but rendered inline in a list
  * rather than floating, and roughly 2x the width for easier reading.
  */
+
+// Left indent so the body content lines up with the title, not the card
+// edge — accounts for the header's left padding + date badge width + gap.
+const CARD_PADDING_X = 20;
+const DATE_BADGE_WIDTH = 70; // minWidth(52) + padding(8*2) + border(1*2)
+const HEADER_GAP = 14;
+const DETAIL_INDENT = CARD_PADDING_X + DATE_BADGE_WIDTH + HEADER_GAP;
+
 export default function EventDetailCard({ ev }: { ev: CalEvent }) {
   const { theme } = useTheme();
   const categoryColor = ev.categoryColor;
@@ -94,8 +102,8 @@ export default function EventDetailCard({ ev }: { ev: CalEvent }) {
       {/* Divider */}
       <div style={{ height: 1, background: theme.border, margin: "0 20px" }} />
 
-      {/* Body — two-column layout on wide cards */}
-      <div style={{ padding: "14px 20px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Body — indented to align with the title above, not the card edge */}
+      <div style={{ padding: `14px 20px 18px ${DETAIL_INDENT}px`, display: "flex", flexDirection: "column", gap: 12 }}>
 
         {/* Date + time + duration */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
