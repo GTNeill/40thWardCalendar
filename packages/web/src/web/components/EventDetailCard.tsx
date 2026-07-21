@@ -2,7 +2,6 @@ import type { CalEvent } from "../lib/calendarUtils";
 import { fmtDayNum, fmtMonthShort, fmtWeekday, fmtTime, fmtDuration } from "../lib/calendarUtils";
 import { MapPin, Clock, ExternalLink, User, Calendar, AlarmClock } from "lucide-react";
 import { useTheme } from "../lib/theme";
-
 /**
  * Static, wide version of the Google Calendar–style event popup.
  * Used for search results — same visual language as the hover popup
@@ -22,7 +21,7 @@ export default function EventDetailCard({ ev }: { ev: CalEvent }) {
     <div
       style={{
         width: "100%",
-        maxWidth: 800,
+        maxWidth: 960,
         background: theme.popupBg,
         border: `1.5px solid ${theme.popupBorder}`,
         borderRadius: 14,
@@ -38,33 +37,57 @@ export default function EventDetailCard({ ev }: { ev: CalEvent }) {
       <div style={{ height: 6, background: categoryColor }} />
 
       {/* Header */}
-      <div style={{ padding: "16px 20px 10px" }}>
+      <div style={{ padding: "16px 20px 10px", display: "flex", alignItems: "flex-start", gap: 14 }}>
+        {/* Date badge — same style as the compact card's date column */}
         <div
+          className="flex-shrink-0 text-center"
           style={{
-            fontSize: "0.72rem",
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            color: categoryColor,
-            marginBottom: 4,
+            minWidth: 52,
+            padding: "6px 8px",
+            borderRadius: 8,
+            background: `${categoryColor}14`,
+            border: `1px solid ${categoryColor}44`,
           }}
         >
-          {ev.categoryIcon} {ev.categoryLabel}
+          <div style={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, color: categoryColor }}>
+            {fmtWeekday(ev.start)}
+          </div>
+          <div style={{ fontSize: "1.4rem", fontWeight: 800, lineHeight: 1.1, color: theme.textPrimary }}>
+            {fmtDayNum(ev.start)}
+          </div>
+          <div style={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600, color: categoryColor, opacity: 0.8 }}>
+            {fmtMonthShort(ev.start)}
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              fontSize: "1.1rem",
+              fontSize: "0.72rem",
               fontWeight: 700,
-              lineHeight: 1.3,
-              color: theme.textPrimary,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: categoryColor,
+              marginBottom: 4,
             }}
           >
-            {ev.title}
+            {ev.categoryIcon} {ev.categoryLabel}
           </div>
-          {ev.htmlLink && (
-            <ExternalLink size={14} style={{ color: theme.textMuted, flexShrink: 0 }} />
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div
+              style={{
+                fontSize: "1.1rem",
+                fontWeight: 700,
+                lineHeight: 1.3,
+                color: theme.textPrimary,
+              }}
+            >
+              {ev.title}
+            </div>
+            {ev.htmlLink && (
+              <ExternalLink size={14} style={{ color: theme.textMuted, flexShrink: 0 }} />
+            )}
+          </div>
         </div>
       </div>
 
