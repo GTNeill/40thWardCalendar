@@ -26,10 +26,10 @@ export interface CategoryDef {
   group: string;       // "government" | "community"
   order: number;
   keywords: string[];  // plain strings used as regex alternates
-  match: (title: string, desc?: string) => boolean;
+  match: (title: string) => boolean;
 }
 
-function buildMatcher(keywords: string[]): (title: string, desc?: string) => boolean {
+function buildMatcher(keywords: string[]): (title: string) => boolean {
   if (keywords.length === 0) return () => true;   // "other" sentinel
   const rx = new RegExp(keywords.join("|"), "i");
   return (t: string) => rx.test(t);
@@ -83,9 +83,17 @@ function saveCategories(cats: Omit<CategoryDef, "match">[]): void {
 let runtimeCategories: CategoryDef[] = [FALLBACK_CATEGORY];
 runtimeCategories = loadCategories();
 
-function categorize(title: string, description: string = ""): CategoryDef {
+function categorize(title: string, _description: string = ""): CategoryDef {
+  // Title-only matching. Description text is deliberately NOT checked here —
+  // matching against long free-form description paragraphs proved unsafe:
+  // even "literal" keywords can collide with ordinary words used in an
+  // unrelated sense (e.g. "groundbreaking" as an adjective vs. an actual
+  // groundbreaking ceremony), and wildcard keywords tuned for short titles
+  // can span across unrelated sentences. If an event's defining detail only
+  // appears in its description, add that specific title/phrase as its own
+  // keyword instead (see ADMIN-GUIDE.md).
   for (const cat of runtimeCategories) {
-    if (cat.match(title, description)) return cat;
+    if (cat.match(title)) return cat;
   }
   // Guaranteed non-empty due to loadCategories() never returning [].
   return runtimeCategories[runtimeCategories.length - 1] ?? FALLBACK_CATEGORY;
