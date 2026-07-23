@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { flushSync } from "react-dom";
 import { useTheme } from "../lib/theme";
+import { authClient } from "../lib/auth";
 
 interface Category {
   key: string;
@@ -460,7 +461,7 @@ function SiteSettingsPanel({ theme }: { theme: ReturnType<typeof useTheme>["them
 let newKeyCounter = 0;
 function newKey() { return `__new_${++newKeyCounter}`; }
 
-export default function AdminCat() {
+function AdminCatInner() {
   const { theme } = useTheme();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -756,4 +757,111 @@ export default function AdminCat() {
       </div>
     </div>
   );
+}
+
+// ── Auth gate ──────────────────────────────────────────────────────────────
+type AuthCheck = { signedIn: boolean; email: string | null; authorized: boolean };
+
+function AdminSignIn({ deniedEmail }: { deniedEmail?: string | null }) {
+  const { theme } = useTheme();
+  const [busy, setBusy] = useState(false);
+
+  const signIn = async () => {
+    setBusy(true);
+    await authClient.signIn.social({ provider: "google", callbackURL: "/admincat" });
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: theme.bg,
+      color: theme.textPrimary,
+      fontFamily: theme.fontBody,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "24px",
+    }}>
+      <div style={{
+        background: theme.surface,
+        border: `1px solid ${theme.border}`,
+        borderRadius: "12px",
+        padding: "40px",
+        maxWidth: "380px",
+        width: "100%",
+        textAlign: "center",
+      }}>
+        <h1 style={{
+          margin: "0 0 8px",
+          fontFamily: theme.fontDisplay,
+          fontSize: "24px",
+          fontWeight: 700,
+          color: theme.textPrimary,
+        }}>
+          Category Manager
+        </h1>
+        <p style={{ margin: "0 0 24px", fontSize: "13px", color: theme.textMuted }}>
+          Sign in with an authorized Google account to continue.
+        </p>
+
+        {deniedEmail && (
+          <div style={{
+            marginBottom: "20px",
+            padding: "10px 14px",
+            borderRadius: "6px",
+            background: `${theme.accent}18`,
+            border: `1px solid ${theme.accent}44`,
+            fontSize: "12px",
+            color: theme.accent,
+          }}>
+            {deniedEmail} isn't authorized for this page.
+          </div>
+        )}
+
+        <button
+          onClick={signIn}
+          disabled={busy}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px",
+            width: "100%",
+            padding: "11px 16px",
+            borderRadius: "8px",
+            border: `1px solid ${theme.border}`,
+            background: theme.bg,
+            color: theme.textPrimary,
+            fontSize: "14px",
+            fontWeight: 500,
+            cursor: busy ? "default" : "pointer",
+            opacity: busy ? 0.6 : 1,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18">
+            <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.84 2.09-1.8 2.73v2.27h2.92c1.71-1.57 2.68-3.88 2.68-6.64z"/>
+            <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.27c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.71H.96v2.34C2.44 15.98 5.48 18 9 18z"/>
+            <path fill="#FBBC05" d="M3.97 10.7A5.4 5.4 0 0 1 3.68 9c0-.59.1-1.17.29-1.7V4.96H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.04l3.01-2.34z"/>
+            <path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.59-2.59C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l3.01 2.34C4.68 5.16 6.66 3.58 9 3.58z"/>
+          </svg>
+          {busy ? "Redirecting…" : "Sign in with Google"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function AdminCat() {
+  const [check, setCheck] = useState<AuthCheck | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/whoami")
+      .then(r => r.json())
+      .then(setCheck)
+      .catch(() => setCheck({ signedIn: false, email: null, authorized: false }));
+  }, []);
+
+  if (!check) return null;
+  if (!check.authorized) return <AdminSignIn deniedEmail={check.signedIn ? check.email : null} />;
+  return <AdminCatInner />;
 }

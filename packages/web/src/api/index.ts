@@ -3,6 +3,8 @@ import { cors } from "hono/cors";
 import { RRuleSet, rrulestr } from "rrule";
 import fs from "node:fs";
 import path from "node:path";
+import { auth, ADMIN_EMAIL_ALLOWLIST } from "./auth";
+import { requireAdminAuth } from "./middleware/auth";
 
 // ── 40th Ward public Google Calendar IDs ─────────────────────────────────────
 const CAL1_ID = "c_50dc8883383193a9f6ba4d86cd23a836978e1d42028f0e7bb263955d5539912c@group.calendar.google.com";
@@ -420,16 +422,25 @@ function shapeEvent(ev: any) {
 
 // ── Hono app ──────────────────────────────────────────────────────────────────
 const app = new Hono()
+  .use(cors({ origin: (origin) => origin ?? "*", credentials: true, exposeHeaders: ["set-auth-token"] }))
+  .on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw))
   .basePath("api")
-  .use(cors({ origin: (origin) => origin ?? "*", credentials: true }))
 
   .get("/health", (c) => c.json({ status: "ok" }, 200))
+
+  // ── Admin auth check: is the current session an allowlisted admin? ───────
+  .get("/admin/whoami", async (c) => {
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    const email = session?.user?.email ?? null;
+    const authorized = !!email && ADMIN_EMAIL_ALLOWLIST.includes(email);
+    return c.json({ signedIn: !!session, email, authorized }, 200);
+  })
 
   // ── Public: current site settings (header/subtitle/footer link) ──────────
   .get("/settings", (c) => c.json(runtimeSettings, 200))
 
   // ── Admin: replace site settings ──────────────────────────────────────────
-  .put("/admin/settings", async (c) => {
+  .put("/admin/settings", requireAdminAuth, async (c) => {
     try {
       const body = await c.req.json();
       const next: SiteSettings = {
@@ -454,7 +465,7 @@ const app = new Hono()
   })
 
   // ── Admin: get full category list including keywords ──────────────────────
-  .get("/admin/categories", (c) => {
+  .get("/admin/categories", requireAdminAuth, (c) => {
     return c.json(
       runtimeCategories.map(({ key, label, icon, color, group, order, keywords }) => ({
         key, label, icon, color, group, order, keywords,
@@ -464,7 +475,7 @@ const app = new Hono()
   })
 
   // ── Admin: replace full category list ────────────────────────────────────
-  .put("/admin/categories", async (c) => {
+  .put("/admin/categories", requireAdminAuth, async (c) => {
     try {
       const body = await c.req.json() as Omit<CategoryDef, "match">[];
       if (!Array.isArray(body)) return c.json({ error: "Expected array" }, 400);
