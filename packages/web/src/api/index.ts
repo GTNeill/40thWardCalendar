@@ -27,12 +27,32 @@ export interface CategoryDef {
   order: number;
   keywords: string[];  // plain strings used as regex alternates
   match: (title: string) => boolean;
+  matchDescription: (text: string) => boolean;
 }
 
 function buildMatcher(keywords: string[]): (title: string) => boolean {
   if (keywords.length === 0) return () => true;   // "other" sentinel
   const rx = new RegExp(keywords.join("|"), "i");
   return (t: string) => rx.test(t);
+}
+
+// Keywords eligible for description matching must be BOTH:
+//  1. Free of regex metacharacters (.*  .?  ^  $  ()  [] etc.) — a wildcard
+//     tuned for a short title (e.g. "ward.*office") can otherwise span
+//     across unrelated sentences in a long free-form description.
+//  2. Multi-word phrases (contain a space) — a single generic word like
+//     "groundbreaking" is too ambiguous out of context (it can appear as an
+//     ordinary adjective, e.g. "a groundbreaking new musical", with no
+//     relation to an actual groundbreaking ceremony). Multi-word phrases
+//     like "ward night" or "american blues theater" are specific enough to
+//     safely substring-match against full description text.
+const REGEX_METACHAR = /[.*+?^${}()|[\]\\]/;
+
+function buildDescriptionMatcher(keywords: string[]): (text: string) => boolean {
+  const safe = keywords.filter(k => !REGEX_METACHAR.test(k) && k.trim().includes(" "));
+  if (safe.length === 0) return () => false;
+  const rx = new RegExp(safe.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "i");
+  return (text: string) => rx.test(text);
 }
 
 // Built-in safety net — used only if categories.json is ever unreadable/empty,
@@ -46,6 +66,7 @@ const FALLBACK_CATEGORY: CategoryDef = {
   order: 999,
   keywords: [],
   match: () => true,
+  matchDescription: () => true,
 };
 
 function loadCategories(): CategoryDef[] {
@@ -57,7 +78,7 @@ function loadCategories(): CategoryDef[] {
     }
     return parsed
       .sort((a, b) => a.order - b.order)
-      .map(c => ({ ...c, match: buildMatcher(c.keywords) }));
+      .map(c => ({ ...c, match: buildMatcher(c.keywords), matchDescription: buildDescriptionMatcher(c.keywords) }));
   } catch (e) {
     console.error("Failed to load categories.json, keeping previous list:", e);
     // Never return an empty list — fall back to whatever was last loaded
@@ -83,17 +104,21 @@ function saveCategories(cats: Omit<CategoryDef, "match">[]): void {
 let runtimeCategories: CategoryDef[] = [FALLBACK_CATEGORY];
 runtimeCategories = loadCategories();
 
-function categorize(title: string, _description: string = ""): CategoryDef {
-  // Title-only matching. Description text is deliberately NOT checked here —
-  // matching against long free-form description paragraphs proved unsafe:
-  // even "literal" keywords can collide with ordinary words used in an
-  // unrelated sense (e.g. "groundbreaking" as an adjective vs. an actual
-  // groundbreaking ceremony), and wildcard keywords tuned for short titles
-  // can span across unrelated sentences. If an event's defining detail only
-  // appears in its description, add that specific title/phrase as its own
-  // keyword instead (see ADMIN-GUIDE.md).
+function categorize(title: string, description: string = ""): CategoryDef {
+  // Pass 1 — title only (unchanged, highest-confidence match).
   for (const cat of runtimeCategories) {
+    if (cat.key === "other") continue; // always last-resort
     if (cat.match(title)) return cat;
+  }
+  // Pass 2 — fallback to description, only for multi-word literal phrases
+  // (see buildDescriptionMatcher for why). Catches events whose defining
+  // detail — a producing company, venue, or organizer — only appears in
+  // the description, not the title itself (e.g. "American Blues Theater").
+  if (description) {
+    for (const cat of runtimeCategories) {
+      if (cat.key === "other") continue;
+      if (cat.matchDescription(description)) return cat;
+    }
   }
   // Guaranteed non-empty due to loadCategories() never returning [].
   return runtimeCategories[runtimeCategories.length - 1] ?? FALLBACK_CATEGORY;

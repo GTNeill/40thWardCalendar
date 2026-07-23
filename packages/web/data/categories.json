@@ -60,12 +60,35 @@
     ]
   },
   {
+    "key": "immigration",
+    "label": "Immigration & Rights",
+    "icon": "🌐",
+    "color": "#d47a1e",
+    "group": "government",
+    "order": 2,
+    "keywords": [
+      "immigration",
+      "immigrant",
+      "refugee",
+      "migrant",
+      "daca",
+      "know your rights.*business",
+      "conozca sus derechos",
+      "sesión informativa",
+      "inmigración",
+      "sanctuary",
+      "rights.*immigrant",
+      "immigrant.*rights",
+      "how health.*immigrant"
+    ]
+  },
+  {
     "key": "ainslieArts",
     "label": "Ainslie Arts Plaza",
     "icon": "🎪",
     "color": "#c026d3",
     "group": "community",
-    "order": 2,
+    "order": 3,
     "keywords": [
       "ainslie arts plaza",
       "ainslie plaza",
@@ -80,7 +103,7 @@
     "icon": "🚔",
     "color": "#1a6fbf",
     "group": "community",
-    "order": 3,
+    "order": 4,
     "keywords": [
       "cpd",
       "police",
@@ -104,7 +127,7 @@
     "icon": "🎭",
     "color": "#7c3d9e",
     "group": "community",
-    "order": 4,
+    "order": 5,
     "keywords": [
       "theater",
       "theatre",
@@ -186,7 +209,7 @@
     "icon": "🤝",
     "color": "#147671",
     "group": "community",
-    "order": 5,
+    "order": 6,
     "keywords": [
       "block party",
       "block club",
@@ -218,7 +241,7 @@
     "icon": "🌿",
     "color": "#2d8a4e",
     "group": "community",
-    "order": 6,
+    "order": 7,
     "keywords": [
       "environmental",
       "earth day",
@@ -270,7 +293,7 @@
     "icon": "🩺",
     "color": "#1a9e72",
     "group": "community",
-    "order": 7,
+    "order": 8,
     "keywords": [
       "health",
       "medical",
@@ -293,12 +316,32 @@
     ]
   },
   {
+    "key": "sports___exercise",
+    "label": "Sports & Exercise",
+    "icon": "📁",
+    "color": "#888888",
+    "group": "community",
+    "order": 9,
+    "keywords": [
+      "Run",
+      "Walk",
+      "5k",
+      "10k",
+      "Bike",
+      "bicycle",
+      "race",
+      "yoga",
+      "pilates",
+      "tai chi"
+    ]
+  },
+  {
     "key": "education",
     "label": "Education & Learning",
     "icon": "🎓",
     "color": "#3b6dbf",
     "group": "community",
-    "order": 8,
+    "order": 10,
     "keywords": [
       "workshop",
       "webinar",
@@ -328,35 +371,12 @@
     ]
   },
   {
-    "key": "immigration",
-    "label": "Immigration & Rights",
-    "icon": "🌐",
-    "color": "#d47a1e",
-    "group": "government",
-    "order": 9,
-    "keywords": [
-      "immigration",
-      "immigrant",
-      "refugee",
-      "migrant",
-      "daca",
-      "know your rights.*business",
-      "conozca sus derechos",
-      "sesión informativa",
-      "inmigración",
-      "sanctuary",
-      "rights.*immigrant",
-      "immigrant.*rights",
-      "how health.*immigrant"
-    ]
-  },
-  {
     "key": "food",
     "label": "Food & Markets",
     "icon": "🍎",
     "color": "#c44e2a",
     "group": "community",
-    "order": 10,
+    "order": 11,
     "keywords": [
       "farmer.?s market",
       "food box",
@@ -385,7 +405,7 @@
     "icon": "🎊",
     "color": "#d4a017",
     "group": "community",
-    "order": 11,
+    "order": 12,
     "keywords": [
       "4th for all",
       "4th of july",
@@ -418,26 +438,6 @@
       "lunar new year",
       "navidad",
       "posada"
-    ]
-  },
-  {
-    "key": "sports___exercise",
-    "label": "Sports & Exercise",
-    "icon": "📁",
-    "color": "#888888",
-    "group": "community",
-    "order": 12,
-    "keywords": [
-      "Run",
-      "Walk",
-      "5k",
-      "10k",
-      "Bike",
-      "bicycle",
-      "race",
-      "yoga",
-      "pilates",
-      "tai chi"
     ]
   },
   {
