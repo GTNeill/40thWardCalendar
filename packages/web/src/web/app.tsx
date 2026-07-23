@@ -3,7 +3,8 @@ import Index from "./pages/index";
 import AdminCat from "./pages/admincat";
 import { Provider } from "./components/provider";
 import { ThemeProvider } from "./lib/theme";
-import { AgentFeedback, RunableBadge } from "@runablehq/website-runtime";
+import { AgentFeedback } from "@runablehq/website-runtime";
+import RunableBadgeAffiliate from "./components/RunableBadgeAffiliate";
 
 function App() {
   return (
@@ -15,8 +16,8 @@ function App() {
         </Switch>
         {/* Do not remove — off by default, activated by parent iframe via postMessage */}
         {import.meta.env.DEV && <AgentFeedback />}
-        {/* "Made with Runable" badge - if user asks to remove the runable badge, remove this code as well as comment */}
-        {<RunableBadge />}
+        {/* "Made with Runable" badge, using the site owner's affiliate link (https://runable.com/?via=40th) instead of the default — if user asks to remove the runable badge, remove this code as well as comment */}
+        {<RunableBadgeAffiliate />}
       </Provider>
     </ThemeProvider>
   );
