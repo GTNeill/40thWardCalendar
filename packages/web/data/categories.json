@@ -63,7 +63,7 @@
     "key": "immigration",
     "label": "Immigration & Rights",
     "icon": "🌐",
-    "color": "#d47a1e",
+    "color": "#006747",
     "group": "government",
     "order": 2,
     "keywords": [
@@ -79,7 +79,35 @@
       "sanctuary",
       "rights.*immigrant",
       "immigrant.*rights",
-      "how health.*immigrant"
+      "how health.*immigrant",
+      "ICE",
+      "DHS",
+      "CCIRR"
+    ]
+  },
+  {
+    "key": "housing",
+    "label": "Housing & Property",
+    "icon": "🏠",
+    "color": "#5c7a3e",
+    "group": "government",
+    "order": 3,
+    "keywords": [
+      "homebuyer",
+      "homebuying",
+      "housing fair",
+      "property tax",
+      "appeal.*seminar",
+      "landlord",
+      "tenant",
+      "eviction",
+      "sbif",
+      "small business.*fund",
+      "construction",
+      "streetscape",
+      "ribbon cutting",
+      "infrastructure",
+      "renovation"
     ]
   },
   {
@@ -88,7 +116,7 @@
     "icon": "🎪",
     "color": "#c026d3",
     "group": "community",
-    "order": 3,
+    "order": 4,
     "keywords": [
       "ainslie arts plaza",
       "ainslie plaza",
@@ -103,7 +131,7 @@
     "icon": "🚔",
     "color": "#1a6fbf",
     "group": "community",
-    "order": 4,
+    "order": 5,
     "keywords": [
       "cpd",
       "police",
@@ -127,7 +155,7 @@
     "icon": "🎭",
     "color": "#7c3d9e",
     "group": "community",
-    "order": 5,
+    "order": 6,
     "keywords": [
       "theater",
       "theatre",
@@ -206,10 +234,10 @@
   {
     "key": "community",
     "label": "Community Events",
-    "icon": "🤝",
+    "icon": "👨‍👩‍👧‍👦",
     "color": "#147671",
     "group": "community",
-    "order": 6,
+    "order": 7,
     "keywords": [
       "block party",
       "block club",
@@ -241,7 +269,7 @@
     "icon": "🌿",
     "color": "#2d8a4e",
     "group": "community",
-    "order": 7,
+    "order": 8,
     "keywords": [
       "environmental",
       "earth day",
@@ -293,7 +321,7 @@
     "icon": "🩺",
     "color": "#1a9e72",
     "group": "community",
-    "order": 8,
+    "order": 9,
     "keywords": [
       "health",
       "medical",
@@ -318,10 +346,10 @@
   {
     "key": "sports___exercise",
     "label": "Sports & Exercise",
-    "icon": "📁",
+    "icon": "🏃",
     "color": "#888888",
     "group": "community",
-    "order": 9,
+    "order": 10,
     "keywords": [
       "Run",
       "Walk",
@@ -341,7 +369,7 @@
     "icon": "🎓",
     "color": "#3b6dbf",
     "group": "community",
-    "order": 10,
+    "order": 11,
     "keywords": [
       "workshop",
       "webinar",
@@ -376,7 +404,7 @@
     "icon": "🍎",
     "color": "#c44e2a",
     "group": "community",
-    "order": 11,
+    "order": 12,
     "keywords": [
       "farmer.?s market",
       "food box",
@@ -405,7 +433,7 @@
     "icon": "🎊",
     "color": "#d4a017",
     "group": "community",
-    "order": 12,
+    "order": 13,
     "keywords": [
       "4th for all",
       "4th of july",
@@ -446,7 +474,7 @@
     "icon": "🎉",
     "color": "#b03070",
     "group": "community",
-    "order": 13,
+    "order": 14,
     "keywords": [
       "party",
       "bash",
@@ -473,31 +501,6 @@
       "lets celebrate",
       "be seen.*proud",
       "join.*cookout"
-    ]
-  },
-  {
-    "key": "housing",
-    "label": "Housing & Property",
-    "icon": "🏠",
-    "color": "#5c7a3e",
-    "group": "government",
-    "order": 14,
-    "keywords": [
-      "homebuyer",
-      "homebuying",
-      "housing fair",
-      "property tax",
-      "appeal.*seminar",
-      "landlord",
-      "tenant",
-      "eviction",
-      "sbif",
-      "small business.*fund",
-      "construction",
-      "streetscape",
-      "ribbon cutting",
-      "infrastructure",
-      "renovation"
     ]
   },
   {

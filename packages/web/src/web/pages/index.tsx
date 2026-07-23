@@ -128,6 +128,7 @@ function ZoomSlider({
 export default function Index() {
   const { theme, toggle } = useTheme();
   const isMobile = useIsMobile();
+  const isEmbed = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1";
   const { data: siteSettings } = useSiteSettings();
   const headerTitle = siteSettings?.headerTitle ?? "40th Ward";
   const headerSubtitle = siteSettings?.headerSubtitle ?? "Chicago Community Events Calendar";
@@ -150,6 +151,24 @@ export default function Index() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // When embedded in an iframe (e.g. the WPCalendarCats WordPress plugin),
+  // report document height to the parent window so it can auto-resize the iframe.
+  useEffect(() => {
+    if (!isEmbed || typeof window === "undefined") return;
+    const postHeight = () => {
+      const height = document.documentElement.scrollHeight;
+      window.parent?.postMessage({ type: "wpcalendarcats:resize", height }, "*");
+    };
+    postHeight();
+    const ro = new ResizeObserver(postHeight);
+    ro.observe(document.documentElement);
+    window.addEventListener("load", postHeight);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("load", postHeight);
+    };
+  }, [isEmbed]);
 
   // Cards use rolling range (today → +week/month); Calendar grid uses calendar-aligned range
   const cardRange = getRollingRange(unit, offset);
@@ -191,51 +210,53 @@ export default function Index() {
     <div className="min-h-screen" style={{ background: theme.bg, fontFamily: theme.fontBody }}>
 
       {/* ── Top accent bar ── */}
-      <div style={{ height: 4, background: theme.teal }} />
+      {!isEmbed && <div style={{ height: 4, background: theme.teal }} />}
 
       {/* ── Header ── */}
       <header
         ref={headerRef}
-        className="sticky top-0 z-10 border-b"
+        className={isEmbed ? "" : "sticky top-0 z-10 border-b"}
         style={{
           background: theme.bgHeader,
           borderColor: theme.border,
-          backdropFilter: "blur(8px)",
+          backdropFilter: isEmbed ? undefined : "blur(8px)",
         }}
       >
         <div style={{ maxWidth: 1152, margin: "0 auto", padding: isMobile ? "0 16px" : "0 48px" }}>
 
-          {/* Row 1: Logo area */}
-          <div className="flex items-end pt-5 pb-2">
-            <div>
-              <h1
-                className="leading-none"
-                style={{
-                  fontFamily: theme.fontDisplay,
-                  fontSize: "1.85rem",
-                  color: theme.textPrimary,
-                  letterSpacing: "0.02em",
-                }}
-              >
-                {headerTitle}
-              </h1>
-              <p
-                className="mt-0.5"
-                style={{
-                  fontFamily: theme.fontBody,
-                  fontSize: "0.75rem",
-                  fontWeight: 500,
-                  color: theme.textMuted,
-                  letterSpacing: "0.04em",
-                }}
-              >
-                {headerSubtitle}
-              </p>
+          {/* Row 1: Logo area — branding, excluded from embed mode */}
+          {!isEmbed && (
+            <div className="flex items-end pt-5 pb-2">
+              <div>
+                <h1
+                  className="leading-none"
+                  style={{
+                    fontFamily: theme.fontDisplay,
+                    fontSize: "1.85rem",
+                    color: theme.textPrimary,
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {headerTitle}
+                </h1>
+                <p
+                  className="mt-0.5"
+                  style={{
+                    fontFamily: theme.fontBody,
+                    fontSize: "0.75rem",
+                    fontWeight: 500,
+                    color: theme.textMuted,
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  {headerSubtitle}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Row 2: Range label — its own line so it never gets squashed by controls */}
-          <div className="pb-2">
+          <div className="pb-2" style={isEmbed ? { paddingTop: 16 } : undefined}>
             <p className="text-sm font-semibold" style={{ color: theme.textPrimary, fontFamily: theme.fontBody }}>
               {rangeLabel}
             </p>
@@ -491,31 +512,33 @@ export default function Index() {
 
       </main>
 
-      {/* ── Footer ── */}
-      <footer
-        className="mt-12 py-8"
-        style={{
-          background: theme.mode === "dark" ? "#051820" : "#0b3e4a",
-          borderTop: `4px solid ${theme.teal}`,
-        }}
-      >
-        <div style={{ maxWidth: 1152, margin: "0 auto", padding: isMobile ? "0 16px" : "0 48px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
-          <p className="text-xs" style={{ color: "rgba(255,255,255,0.55)", fontFamily: theme.fontBody }}>
-            40th Ward of Chicago · Alderperson Andre Vasquez
-          </p>
-          {footerLinkUrl && (
-            <a
-              href={footerLinkUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-semibold"
-              style={{ color: "#fffbf4", fontFamily: theme.fontBody, textDecoration: "none" }}
-            >
-              {footerLinkText || footerLinkUrl}
-            </a>
-          )}
-        </div>
-      </footer>
+      {/* ── Footer — branding, excluded from embed mode ── */}
+      {!isEmbed && (
+        <footer
+          className="mt-12 py-8"
+          style={{
+            background: theme.mode === "dark" ? "#051820" : "#0b3e4a",
+            borderTop: `4px solid ${theme.teal}`,
+          }}
+        >
+          <div style={{ maxWidth: 1152, margin: "0 auto", padding: isMobile ? "0 16px" : "0 48px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.55)", fontFamily: theme.fontBody }}>
+              40th Ward of Chicago · Alderperson Andre Vasquez
+            </p>
+            {footerLinkUrl && (
+              <a
+                href={footerLinkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold"
+                style={{ color: "#fffbf4", fontFamily: theme.fontBody, textDecoration: "none" }}
+              >
+                {footerLinkText || footerLinkUrl}
+              </a>
+            )}
+          </div>
+        </footer>
+      )}
 
     </div>
   );
