@@ -2,9 +2,9 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import type { CalEvent } from "../lib/calendarUtils";
 import {
   parseLocalDate, fmtTime, fmtDuration, fmtWeekday, fmtDayNum, fmtMonthShort,
-  isSameDay,
+  isSameDay, googleCalendarAddUrl,
 } from "../lib/calendarUtils";
-import { Clock, MapPin, User, Calendar, AlarmClock, ExternalLink, X } from "lucide-react";
+import { Clock, MapPin, User, Calendar, AlarmClock, ExternalLink, X, CalendarPlus } from "lucide-react";
 import { useTheme } from "../lib/theme";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { useCategories } from "../hooks/useCategories";
@@ -26,11 +26,15 @@ function EventPopup({
   anchorRef,
   isMobile,
   onClose,
+  onMouseEnter,
+  onMouseLeave,
 }: {
   ev: CalEvent;
   anchorRef: React.RefObject<HTMLElement | null>;
   isMobile?: boolean;
   onClose?: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }) {
   const { theme } = useTheme();
   const popupRef = useRef<HTMLDivElement>(null);
@@ -69,6 +73,8 @@ function EventPopup({
   return (
     <div
       ref={popupRef}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       style={{
         position: "fixed",
         zIndex: 9999,
@@ -83,7 +89,8 @@ function EventPopup({
           theme.mode === "dark"
             ? "0 0 0 1px #000, 0 12px 48px rgba(0,0,0,0.85), 0 2px 10px rgba(0,0,0,0.6)"
             : "0 0 0 1px rgba(0,0,0,0.08), 0 12px 48px rgba(0,0,0,0.22), 0 2px 10px rgba(0,0,0,0.12)",
-        pointerEvents: isMobile ? "auto" : "none",
+        // Interactive on both mobile and desktop, so links inside are clickable.
+        pointerEvents: "auto",
         overflow: "hidden",
       }}
     >
@@ -163,27 +170,27 @@ function EventPopup({
           <Calendar size={13} style={{ color: cat, flexShrink: 0 }} />
           <div style={{ fontSize: "0.75rem", color: theme.textMuted }}>{ev.categoryLabel}</div>
         </div>
+        <div style={{ height: 1, background: theme.border }} />
         {ev.htmlLink && (
-          <>
-            <div style={{ height: 1, background: theme.border }} />
-            {isMobile ? (
-              <a
-                href={ev.htmlLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", gap: 7, textDecoration: "none" }}
-              >
-                <ExternalLink size={12} style={{ color: cat }} />
-                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: cat }}>Open in Google Calendar</span>
-              </a>
-            ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <ExternalLink size={12} style={{ color: cat }} />
-                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: cat }}>Open in Google Calendar</span>
-              </div>
-            )}
-          </>
+          <a
+            href={ev.htmlLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", gap: 7, textDecoration: "none" }}
+          >
+            <ExternalLink size={12} style={{ color: cat }} />
+            <span style={{ fontSize: "0.75rem", fontWeight: 600, color: cat }}>Open in Google Calendar</span>
+          </a>
         )}
+        <a
+          href={googleCalendarAddUrl(ev)}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: "flex", alignItems: "center", gap: 7, textDecoration: "none" }}
+        >
+          <CalendarPlus size={12} style={{ color: cat }} />
+          <span style={{ fontSize: "0.75rem", fontWeight: 600, color: cat }}>Add to my calendar</span>
+        </a>
       </div>
     </div>
   );
@@ -198,15 +205,27 @@ function EventChip({ ev }: { ev: CalEvent }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cat = ev.categoryColor;
 
+  // Hide is delayed (and cancelable) so the mouse can travel from the chip
+  // across the small gap into the popup to click a link inside it.
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelHide = useCallback(() => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+  }, []);
+  const scheduleHide = useCallback(() => {
+    cancelHide();
+    hideTimerRef.current = setTimeout(() => setHovered(false), 250);
+  }, [cancelHide]);
+
   const enter = useCallback(() => {
     if (isMobile) return;
+    cancelHide();
     timerRef.current = setTimeout(() => setHovered(true), 280);
-  }, [isMobile]);
+  }, [isMobile, cancelHide]);
   const leave = useCallback(() => {
     if (isMobile) return;
     if (timerRef.current) clearTimeout(timerRef.current);
-    setHovered(false);
-  }, [isMobile]);
+    scheduleHide();
+  }, [isMobile, scheduleHide]);
 
   // Tapping a chip on mobile shows the detail popup instead of navigating
   // straight to Google Calendar; tapping outside closes it.
@@ -278,6 +297,8 @@ function EventChip({ ev }: { ev: CalEvent }) {
           anchorRef={ref as React.RefObject<HTMLElement | null>}
           isMobile={isMobile}
           onClose={() => setHovered(false)}
+          onMouseEnter={cancelHide}
+          onMouseLeave={scheduleHide}
         />
       )}
     </>

@@ -246,3 +246,47 @@ export function googleMapsUrl(location: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
 }
 
+// ── "Add to Google Calendar" link ─────────────────────────────────────────
+// Event start/end strings are naive Chicago wall-clock ISO (no "Z"), so we
+// convert them to true UTC using the same DST-aware technique as the server
+// (works identically in the browser — both implement the ECMA-402 Intl API).
+function chicagoISOToUTC(isoNaive: string): Date {
+  const asUTC = new Date(isoNaive + "Z");
+  const tzStr = asUTC.toLocaleString("en-US", { timeZone: "America/Chicago" });
+  const utcStr = asUTC.toLocaleString("en-US", { timeZone: "UTC" });
+  const offsetMs = new Date(utcStr).getTime() - new Date(tzStr).getTime();
+  return new Date(asUTC.getTime() + offsetMs);
+}
+
+function fmtUTCForGoogle(d: Date): string {
+  return d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+}
+
+export function googleCalendarAddUrl(ev: CalEvent): string {
+  let datesParam: string;
+
+  if (ev.isAllDay) {
+    // Google's all-day "dates" end is EXCLUSIVE — add one day.
+    const startDate = ev.start.slice(0, 10).replace(/-/g, "");
+    const endObj = new Date(`${ev.end ? ev.end.slice(0, 10) : ev.start.slice(0, 10)}T00:00:00Z`);
+    endObj.setUTCDate(endObj.getUTCDate() + 1);
+    const endDate = endObj.toISOString().slice(0, 10).replace(/-/g, "");
+    datesParam = `${startDate}/${endDate}`;
+  } else {
+    const startUTC = chicagoISOToUTC(ev.start);
+    const endUTC = ev.end ? chicagoISOToUTC(ev.end) : new Date(startUTC.getTime() + 60 * 60 * 1000);
+    datesParam = `${fmtUTCForGoogle(startUTC)}/${fmtUTCForGoogle(endUTC)}`;
+  }
+
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: ev.title,
+    dates: datesParam,
+    details: (ev.description || "").replace(/<[^>]*>/g, " ").trim().slice(0, 900),
+    location: ev.location || "",
+  });
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+

@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import type { CalEvent } from "../lib/calendarUtils";
 import {
-  fmtDayNum, fmtMonthShort, fmtWeekday, fmtTime, fmtDuration, isToday, parseLocalDate
+  fmtDayNum, fmtMonthShort, fmtWeekday, fmtTime, fmtDuration, isToday, parseLocalDate, googleCalendarAddUrl
 } from "../lib/calendarUtils";
-import { MapPin, Clock, ExternalLink, User, Calendar, AlarmClock, X } from "lucide-react";
+import { MapPin, Clock, ExternalLink, User, Calendar, AlarmClock, X, CalendarPlus } from "lucide-react";
 import { useTheme } from "../lib/theme";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { useCategories, buildCategoryGroups } from "../hooks/useCategories";
@@ -21,12 +21,16 @@ function EventPopup({
   rowRef,
   isMobile,
   onClose,
+  onMouseEnter,
+  onMouseLeave,
 }: {
   ev: CalEvent;
   categoryColor: string;
   rowRef: React.RefObject<HTMLDivElement | null>;
   isMobile?: boolean;
   onClose?: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }) {
   const { theme } = useTheme();
   const popupRef = useRef<HTMLDivElement>(null);
@@ -71,6 +75,8 @@ function EventPopup({
   return (
     <div
       ref={popupRef}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       style={{
         position: "fixed",
         zIndex: 9999,
@@ -84,7 +90,9 @@ function EventPopup({
         boxShadow: theme.mode === "dark"
           ? "0 0 0 1px #000, 0 12px 48px rgba(0,0,0,0.85), 0 2px 10px rgba(0,0,0,0.6)"
           : "0 0 0 1px rgba(0,0,0,0.08), 0 12px 48px rgba(0,0,0,0.22), 0 2px 10px rgba(0,0,0,0.12)",
-        pointerEvents: isMobile ? "auto" : "none",
+        // Interactive on both mobile and desktop now, so the "Open in
+        // Google Calendar" / "Add to Calendar" links are clickable.
+        pointerEvents: "auto",
         overflow: "hidden",
       }}
     >
@@ -231,32 +239,32 @@ function EventPopup({
           <div style={{ fontSize: "0.8rem", color: theme.textMuted }}>{ev.categoryLabel}</div>
         </div>
 
-        {/* GCal link — a real anchor on mobile so it's tappable inside the popup */}
+        {/* Links — real clickable anchors now that the popup is interactive */}
+        <div style={{ height: 1, background: theme.border }} />
         {ev.htmlLink && (
-          <>
-            <div style={{ height: 1, background: theme.border }} />
-            {isMobile ? (
-              <a
-                href={ev.htmlLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
-              >
-                <ExternalLink size={13} style={{ color: categoryColor }} />
-                <span style={{ fontSize: "0.8rem", fontWeight: 600, color: categoryColor }}>
-                  Open in Google Calendar
-                </span>
-              </a>
-            ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <ExternalLink size={13} style={{ color: categoryColor }} />
-                <span style={{ fontSize: "0.8rem", fontWeight: 600, color: categoryColor }}>
-                  Open in Google Calendar
-                </span>
-              </div>
-            )}
-          </>
+          <a
+            href={ev.htmlLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
+          >
+            <ExternalLink size={13} style={{ color: categoryColor }} />
+            <span style={{ fontSize: "0.8rem", fontWeight: 600, color: categoryColor }}>
+              Open in Google Calendar
+            </span>
+          </a>
         )}
+        <a
+          href={googleCalendarAddUrl(ev)}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
+        >
+          <CalendarPlus size={13} style={{ color: categoryColor }} />
+          <span style={{ fontSize: "0.8rem", fontWeight: 600, color: categoryColor }}>
+            Add to my calendar
+          </span>
+        </a>
       </div>
     </div>
   );
@@ -275,15 +283,28 @@ function EventRow({ ev, categoryColor }: { ev: CalEvent; categoryColor: string }
 
   // Delay popup by 300ms to avoid flicker on quick mouse-overs
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Hide is also delayed (and cancelable) so the mouse can travel from the
+  // row across the small gap into the popup itself — e.g. to click "Open in
+  // Google Calendar" — without the popup disappearing first.
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelHide = useCallback(() => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+  }, []);
+  const scheduleHide = useCallback(() => {
+    cancelHide();
+    hideTimerRef.current = setTimeout(() => setHovered(false), 250);
+  }, [cancelHide]);
+
   const handleEnter = useCallback(() => {
     if (isMobile) return; // no hover on touch devices
+    cancelHide();
     timerRef.current = setTimeout(() => setHovered(true), 300);
-  }, [isMobile]);
+  }, [isMobile, cancelHide]);
   const handleLeave = useCallback(() => {
     if (isMobile) return;
     if (timerRef.current) clearTimeout(timerRef.current);
-    setHovered(false);
-  }, [isMobile]);
+    scheduleHide();
+  }, [isMobile, scheduleHide]);
 
   // On mobile, tapping the row shows the detail popup instead of navigating
   // straight to Google Calendar (which would otherwise open off-screen/
@@ -436,6 +457,8 @@ function EventRow({ ev, categoryColor }: { ev: CalEvent; categoryColor: string }
           rowRef={rowRef}
           isMobile={isMobile}
           onClose={() => setHovered(false)}
+          onMouseEnter={cancelHide}
+          onMouseLeave={scheduleHide}
         />
       )}
     </>

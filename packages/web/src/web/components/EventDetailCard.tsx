@@ -1,6 +1,6 @@
 import type { CalEvent } from "../lib/calendarUtils";
-import { fmtDayNum, fmtMonthShort, fmtWeekday, fmtTime, fmtDuration, linkifyDescription, googleMapsUrl } from "../lib/calendarUtils";
-import { MapPin, Clock, ExternalLink, User, Calendar, AlarmClock } from "lucide-react";
+import { fmtDayNum, fmtMonthShort, fmtWeekday, fmtTime, fmtDuration, linkifyDescription, googleMapsUrl, googleCalendarAddUrl } from "../lib/calendarUtils";
+import { MapPin, Clock, ExternalLink, User, Calendar, AlarmClock, CalendarPlus } from "lucide-react";
 import { useTheme } from "../lib/theme";
 /**
  * Static, wide version of the Google Calendar–style event popup.
@@ -193,18 +193,32 @@ export default function EventDetailCard({ ev }: { ev: CalEvent }) {
           <div style={{ fontSize: "0.82rem", color: theme.textMuted }}>{ev.categoryLabel}</div>
         </div>
 
-        {/* GCal link */}
+        {/* Links */}
+        <div style={{ height: 1, background: theme.border }} />
         {ev.htmlLink && (
-          <>
-            <div style={{ height: 1, background: theme.border }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <ExternalLink size={14} style={{ color: categoryColor }} />
-              <span style={{ fontSize: "0.82rem", fontWeight: 600, color: categoryColor }}>
-                Open in Google Calendar
-              </span>
-            </div>
-          </>
+          <a
+            href={ev.htmlLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
+          >
+            <ExternalLink size={14} style={{ color: categoryColor }} />
+            <span style={{ fontSize: "0.82rem", fontWeight: 600, color: categoryColor }}>
+              Open in Google Calendar
+            </span>
+          </a>
         )}
+        <a
+          href={googleCalendarAddUrl(ev)}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
+        >
+          <CalendarPlus size={14} style={{ color: categoryColor }} />
+          <span style={{ fontSize: "0.82rem", fontWeight: 600, color: categoryColor }}>
+            Add to my calendar
+          </span>
+        </a>
       </div>
     </div>
   );

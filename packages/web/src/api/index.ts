@@ -32,7 +32,12 @@ export interface CategoryDef {
 
 function buildMatcher(keywords: string[]): (title: string) => boolean {
   if (keywords.length === 0) return () => true;   // "other" sentinel
-  const rx = new RegExp(keywords.join("|"), "i");
+  // Wrap each keyword in word boundaries so "walk" only matches the whole
+  // word "walk", never a substring inside "sidewalk", "boardwalk", etc.
+  // Safe for wildcard keywords too — e.g. "ward.*office" becomes
+  // "\bward.*office\b", which additionally stops it from matching inside
+  // "backward" or "officer".
+  const rx = new RegExp(keywords.map(k => `\\b${k}\\b`).join("|"), "i");
   return (t: string) => rx.test(t);
 }
 
@@ -51,7 +56,8 @@ const REGEX_METACHAR = /[.*+?^${}()|[\]\\]/;
 function buildDescriptionMatcher(keywords: string[]): (text: string) => boolean {
   const safe = keywords.filter(k => !REGEX_METACHAR.test(k) && k.trim().includes(" "));
   if (safe.length === 0) return () => false;
-  const rx = new RegExp(safe.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "i");
+  // Word-boundary wrapped, same rationale as buildMatcher above.
+  const rx = new RegExp(safe.map(k => `\\b${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).join("|"), "i");
   return (text: string) => rx.test(text);
 }
 
