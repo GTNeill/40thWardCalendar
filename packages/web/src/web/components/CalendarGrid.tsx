@@ -384,7 +384,7 @@ function WeekView({ events, start }: { events: CalEvent[]; start: Date }) {
   });
 
   return (
-    <div style={{ border: `1px solid ${theme.border}`, borderRadius: 12, overflow: "hidden" }}>
+    <div>
       {/* DOW / date header */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: `1px solid ${theme.border}` }}>
         {days.map((d, i) => {
@@ -460,7 +460,7 @@ function MonthView({ events, start }: { events: CalEvent[]; start: Date }) {
   const currentMonth = start.getMonth();
 
   return (
-    <div style={{ border: `1px solid ${theme.border}`, borderRadius: 12, overflow: "hidden" }}>
+    <div>
       {/* DOW header */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: `1px solid ${theme.border}` }}>
         {DOW.map((d, i) => (
@@ -640,21 +640,26 @@ export default function CalendarGrid({ events, start, end, unit }: Props) {
 
   return (
     <div>
-      <div
-        style={{
-          fontFamily: theme.fontDisplay,
-          fontSize: "1.4rem",
-          letterSpacing: "0.02em",
-          color: theme.textPrimary,
-          marginBottom: 16,
-        }}
-      >
-        {monthYearLabel}
-      </div>
       <CategoryFilterBar events={events} selected={selectedCats} onChange={setSelectedCats} />
-      {unit === "week"
-        ? <WeekView events={filtered} start={start} />
-        : <MonthView events={filtered} start={start} />}
+      <div style={{ border: `1px solid ${theme.border}`, borderRadius: 12, overflow: "hidden" }}>
+        {/* Month/year title bar — traditional calendar-page header cell */}
+        <div
+          style={{
+            borderBottom: `1px solid ${theme.border}`,
+            padding: "14px 0",
+            textAlign: "center",
+            fontFamily: theme.fontDisplay,
+            fontSize: "1.4rem",
+            letterSpacing: "0.02em",
+            color: theme.textPrimary,
+          }}
+        >
+          {monthYearLabel}
+        </div>
+        {unit === "week"
+          ? <WeekView events={filtered} start={start} />
+          : <MonthView events={filtered} start={start} />}
+      </div>
     </div>
   );
 }
