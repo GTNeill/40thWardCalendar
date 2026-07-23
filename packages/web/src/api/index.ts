@@ -17,6 +17,44 @@ const _apiDir: string = (typeof (import.meta as any).dir === "string")
 const _defaultDataDir = path.resolve(_apiDir, "../../data");
 const DATA_DIR  = process.env.DATA_DIR ?? _defaultDataDir;
 const DATA_FILE = path.join(DATA_DIR, "categories.json");
+const SETTINGS_FILE = path.join(DATA_DIR, "site-settings.json");
+
+// ── Site settings persistence (header/subtitle/footer link) ──────────────────
+export interface SiteSettings {
+  headerTitle: string;
+  headerSubtitle: string;
+  footerLinkText: string;
+  footerLinkUrl: string;
+}
+
+const DEFAULT_SETTINGS: SiteSettings = {
+  headerTitle: "40th Ward",
+  headerSubtitle: "Chicago Community Events Calendar",
+  footerLinkText: "40thward.org →",
+  footerLinkUrl: "https://40thward.org/events/",
+};
+
+let runtimeSettings: SiteSettings = DEFAULT_SETTINGS;
+
+function loadSettings(): SiteSettings {
+  try {
+    const raw = fs.readFileSync(SETTINGS_FILE, "utf-8");
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_SETTINGS, ...parsed };
+  } catch (e) {
+    console.error("Failed to load site-settings.json, using defaults:", e);
+    return runtimeSettings ?? DEFAULT_SETTINGS;
+  }
+}
+
+function saveSettings(settings: SiteSettings): void {
+  fs.mkdirSync(path.dirname(SETTINGS_FILE), { recursive: true });
+  const tmpFile = `${SETTINGS_FILE}.tmp-${process.pid}-${Date.now()}`;
+  fs.writeFileSync(tmpFile, JSON.stringify(settings, null, 2), "utf-8");
+  fs.renameSync(tmpFile, SETTINGS_FILE);
+}
+
+runtimeSettings = loadSettings();
 
 export interface CategoryDef {
   key: string;
@@ -386,6 +424,27 @@ const app = new Hono()
   .use(cors({ origin: (origin) => origin ?? "*", credentials: true }))
 
   .get("/health", (c) => c.json({ status: "ok" }, 200))
+
+  // ── Public: current site settings (header/subtitle/footer link) ──────────
+  .get("/settings", (c) => c.json(runtimeSettings, 200))
+
+  // ── Admin: replace site settings ──────────────────────────────────────────
+  .put("/admin/settings", async (c) => {
+    try {
+      const body = await c.req.json();
+      const next: SiteSettings = {
+        headerTitle: typeof body.headerTitle === "string" ? body.headerTitle : DEFAULT_SETTINGS.headerTitle,
+        headerSubtitle: typeof body.headerSubtitle === "string" ? body.headerSubtitle : DEFAULT_SETTINGS.headerSubtitle,
+        footerLinkText: typeof body.footerLinkText === "string" ? body.footerLinkText : "",
+        footerLinkUrl: typeof body.footerLinkUrl === "string" ? body.footerLinkUrl : "",
+      };
+      saveSettings(next);
+      runtimeSettings = loadSettings();
+      return c.json({ ok: true, settings: runtimeSettings }, 200);
+    } catch (e: any) {
+      return c.json({ error: e.message }, 500);
+    }
+  })
 
   .get("/categories", (c) => {
     return c.json(

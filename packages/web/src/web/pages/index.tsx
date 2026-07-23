@@ -13,6 +13,7 @@ import SearchResults from "../components/SearchResults";
 import { timeSince, getRange, getRollingRange, fmtRangeLabel, toISO, type RangeUnit } from "../lib/calendarUtils";
 import { useTheme } from "../lib/theme";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { useSiteSettings } from "../hooks/useSiteSettings";
 
 type Tab = "cards" | "timeline";
 
@@ -127,6 +128,11 @@ function ZoomSlider({
 export default function Index() {
   const { theme, toggle } = useTheme();
   const isMobile = useIsMobile();
+  const { data: siteSettings } = useSiteSettings();
+  const headerTitle = siteSettings?.headerTitle ?? "40th Ward";
+  const headerSubtitle = siteSettings?.headerSubtitle ?? "Chicago Community Events Calendar";
+  const footerLinkText = siteSettings?.footerLinkText ?? "";
+  const footerLinkUrl = siteSettings?.footerLinkUrl ?? "";
   const [tab, setTab] = useState<Tab>("cards");
   const [unit, setUnit] = useState<RangeUnit>("month");
   const [offset, setOffset] = useState(0);
@@ -211,7 +217,7 @@ export default function Index() {
                   letterSpacing: "0.02em",
                 }}
               >
-                40th Ward
+                {headerTitle}
               </h1>
               <p
                 className="mt-0.5"
@@ -223,7 +229,7 @@ export default function Index() {
                   letterSpacing: "0.04em",
                 }}
               >
-                Chicago Community Events Calendar
+                {headerSubtitle}
               </p>
             </div>
           </div>
@@ -497,15 +503,17 @@ export default function Index() {
           <p className="text-xs" style={{ color: "rgba(255,255,255,0.55)", fontFamily: theme.fontBody }}>
             40th Ward of Chicago · Alderperson Andre Vasquez
           </p>
-          <a
-            href="https://40thward.org/events/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs font-semibold"
-            style={{ color: "#fffbf4", fontFamily: theme.fontBody, textDecoration: "none" }}
-          >
-            40thward.org →
-          </a>
+          {footerLinkUrl && (
+            <a
+              href={footerLinkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-semibold"
+              style={{ color: "#fffbf4", fontFamily: theme.fontBody, textDecoration: "none" }}
+            >
+              {footerLinkText || footerLinkUrl}
+            </a>
+          )}
         </div>
       </footer>
 

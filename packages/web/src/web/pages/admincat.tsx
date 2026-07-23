@@ -305,6 +305,157 @@ function CategoryRow({
   );
 }
 
+// ── Site Settings panel ────────────────────────────────────────────────────────
+interface SiteSettings {
+  headerTitle: string;
+  headerSubtitle: string;
+  footerLinkText: string;
+  footerLinkUrl: string;
+}
+
+const SETTINGS_FIELD_STYLE: React.CSSProperties = {
+  width: "100%",
+  padding: "8px 10px",
+  border: "1px solid var(--border, #2A2A2A)",
+  borderRadius: "6px",
+  fontSize: "13px",
+  boxSizing: "border-box",
+};
+
+function SiteSettingsPanel({ theme }: { theme: ReturnType<typeof useTheme>["theme"] }) {
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [status, setStatus] = useState<{ msg: string; ok: boolean } | null>(null);
+  const statusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(r => r.json())
+      .then((data: SiteSettings) => setSettings(data))
+      .catch(e => setStatus({ msg: `Failed to load settings: ${e.message}`, ok: false }));
+  }, []);
+
+  const showStatus = (msg: string, ok: boolean) => {
+    setStatus({ msg, ok });
+    if (statusTimer.current) clearTimeout(statusTimer.current);
+    statusTimer.current = setTimeout(() => setStatus(null), 4000);
+  };
+
+  const field = (key: keyof SiteSettings) => (
+    <input
+      value={settings?.[key] ?? ""}
+      onChange={e => {
+        setSettings(s => (s ? { ...s, [key]: e.target.value } : s));
+        setDirty(true);
+      }}
+      style={{
+        ...SETTINGS_FIELD_STYLE,
+        background: theme.surface,
+        color: theme.textPrimary,
+        borderColor: theme.border,
+      }}
+    />
+  );
+
+  const save = async () => {
+    if (!settings) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Save failed");
+      showStatus("Site settings saved.", true);
+      setDirty(false);
+    } catch (e: any) {
+      showStatus(e.message, false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!settings) {
+    return (
+      <div style={{ padding: "16px 0", color: theme.textMuted, fontSize: "13px" }}>
+        Loading site settings…
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: theme.surface,
+      border: `1px solid ${theme.border}`,
+      borderRadius: "10px",
+      padding: "18px 20px",
+      marginBottom: "8px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+        <h2 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: theme.textPrimary }}>
+          Site Settings
+        </h2>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {status && (
+            <span style={{
+              fontSize: "12px",
+              color: status.ok ? "#4caf8a" : "#e05555",
+              background: status.ok ? "rgba(76,175,138,0.1)" : "rgba(224,85,85,0.1)",
+              border: `1px solid ${status.ok ? "rgba(76,175,138,0.3)" : "rgba(224,85,85,0.3)"}`,
+              borderRadius: "6px",
+              padding: "4px 10px",
+            }}>{status.msg}</span>
+          )}
+          <button
+            onClick={save}
+            disabled={saving || !dirty}
+            style={{
+              padding: "7px 16px",
+              background: dirty ? theme.teal : `${theme.teal}33`,
+              border: `1px solid ${theme.teal}`,
+              borderRadius: "6px",
+              color: dirty ? "#fff" : `${theme.textPrimary}66`,
+              cursor: dirty ? "pointer" : "not-allowed",
+              fontSize: "12px",
+              fontWeight: 600,
+            }}
+          >{saving ? "Saving…" : "Save Settings"}</button>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+        <div>
+          <label style={{ display: "block", fontSize: "11px", color: theme.textMuted, marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Page Header
+          </label>
+          {field("headerTitle")}
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: "11px", color: theme.textMuted, marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Subtitle
+          </label>
+          {field("headerSubtitle")}
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: "11px", color: theme.textMuted, marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Footer Link Text
+          </label>
+          {field("footerLinkText")}
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: "11px", color: theme.textMuted, marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Footer Link URL <span style={{ opacity: 0.7 }}>(leave blank to hide the link)</span>
+          </label>
+          {field("footerLinkUrl")}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 let newKeyCounter = 0;
 function newKey() { return `__new_${++newKeyCounter}`; }
@@ -525,6 +676,11 @@ export default function AdminCat() {
         for wildcards. <strong>Other</strong> always catches unmatched events — its keywords are ignored.
         Press <kbd style={{ background: `${theme.textFaint}44`, padding: "1px 5px", borderRadius: "3px" }}>Enter</kbd>{" "}
         or <kbd style={{ background: `${theme.textFaint}44`, padding: "1px 5px", borderRadius: "3px" }}>,</kbd> to add a keyword.
+      </div>
+
+      {/* Site Settings */}
+      <div style={{ padding: "24px 32px 0", maxWidth: "1400px", margin: "0 auto" }}>
+        <SiteSettingsPanel theme={theme} />
       </div>
 
       {/* Body */}
