@@ -619,7 +619,8 @@ function CategoryFilterBar({ events, selected, onChange }: FilterBarProps) {
 }
 
 /* ─── Main export ────────────────────────────────────────────── */
-export default function CalendarGrid({ events, start, unit }: Props) {
+export default function CalendarGrid({ events, start, end, unit }: Props) {
+  const { theme } = useTheme();
   const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
 
   // Apply filter: empty set = All
@@ -627,8 +628,29 @@ export default function CalendarGrid({ events, start, unit }: Props) {
     ? events
     : events.filter(ev => selectedCats.has(ev.category));
 
+  // Month/year header — if the visible range (e.g. a week) spans two
+  // different months (or years), show both instead of picking one arbitrarily.
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const monthYearLabel = sameMonth
+    ? start.toLocaleString("en-US", { month: "long", year: "numeric" })
+    : sameYear
+    ? `${start.toLocaleString("en-US", { month: "long" })} – ${end.toLocaleString("en-US", { month: "long", year: "numeric" })}`
+    : `${start.toLocaleString("en-US", { month: "long", year: "numeric" })} – ${end.toLocaleString("en-US", { month: "long", year: "numeric" })}`;
+
   return (
     <div>
+      <div
+        style={{
+          fontFamily: theme.fontDisplay,
+          fontSize: "1.4rem",
+          letterSpacing: "0.02em",
+          color: theme.textPrimary,
+          marginBottom: 16,
+        }}
+      >
+        {monthYearLabel}
+      </div>
       <CategoryFilterBar events={events} selected={selectedCats} onChange={setSelectedCats} />
       {unit === "week"
         ? <WeekView events={filtered} start={start} />
