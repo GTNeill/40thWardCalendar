@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { flushSync } from "react-dom";
 import { useTheme } from "../lib/theme";
 
 interface Category {
@@ -33,7 +34,13 @@ function KeywordEditor({
   const addKeyword = (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed || keywords.includes(trimmed)) return;
-    onChange([...keywords, trimmed]);
+    // flushSync forces this state update through synchronously (not batched)
+    // so a Save click that follows immediately after (e.g. clicking Save
+    // while text is still typed but not yet committed via Enter) always
+    // reads the up-to-date keyword list instead of a stale pre-blur render.
+    flushSync(() => {
+      onChange([...keywords, trimmed]);
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -370,6 +377,12 @@ export default function AdminCat() {
   };
 
   const save = async () => {
+    // Force-commit any text still sitting in a focused keyword input (e.g.
+    // typed but not confirmed with Enter/comma) before reading `categories`.
+    // Blurring here synchronously triggers that input's onBlur → addKeyword,
+    // which now uses flushSync, so the state is guaranteed current below.
+    (document.activeElement as HTMLElement | null)?.blur();
+
     setSaving(true);
     try {
       const keys = categories.map(c =>
