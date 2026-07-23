@@ -79,7 +79,7 @@ At the bottom of the page, you'll see a live preview of which categories are cur
 Keywords are how the system decides which category an event belongs to. Here's how matching works and how to get it right:
 
 ### The basics
-- Each keyword is checked against the event **title** (not description or location)
+- Each keyword is checked against the event **title** first. If nothing matches the title, multi-word keyword phrases (like "american blues theater") are also checked against the event **description** as a fallback — single-word keywords and keywords using regex wildcards are never checked against the description, only titles (see "A note on description matching" below)
 - Matching is **case-insensitive** — `Ward Night` and `ward night` behave the same
 - If **any** keyword in the list matches, the event goes into that category
 - Categories are checked in the order they appear on the admin page — if an event could match two categories, the one listed higher wins. Order your most specific/important categories first.
@@ -145,6 +145,16 @@ Keywords: ainslie arts plaza
 The last keyword (`\bainslie\b`) is a catch-all safety net — it matches any event title containing the standalone word "Ainslie," even if it's phrased differently than the other rules expect.
 
 ---
+
+## A note on description matching
+
+If no keyword matches an event's title, the system also checks the event's **description** — but only for keywords that are:
+- **Multi-word phrases** (contain a space), like `american blues theater` or `elderberry social club`
+- **Plain text** with no regex wildcards (`.*`, `.?`, `^`, etc.)
+
+Single words are deliberately excluded from description matching, even if they'd otherwise be safe-looking. A word like `groundbreaking` is precise when it appears in a short event *title* (almost certainly an actual groundbreaking ceremony), but in a full paragraph *description* it might just be an adjective ("a groundbreaking new musical") with nothing to do with the category. Multi-word phrases don't have this problem — they're specific enough to safely match against long-form text.
+
+**Practical implication:** if an event keeps landing in Other despite an obviously-relevant single word appearing only in its description, don't widen that keyword — instead add the event's specific title (or another multi-word phrase unique to it) as its own keyword. This is the same fix used for one-off events like specific play titles.
 
 ## Questions or issues
 
