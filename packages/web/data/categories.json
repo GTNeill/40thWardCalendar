@@ -175,7 +175,9 @@
       "as you like it",
       "midsommer",
       "american blues theater",
-      "the best damn thing"
+      "the best damn thing",
+      "art",
+      "arts"
     ]
   },
   {
@@ -419,20 +421,37 @@
     ]
   },
   {
+    "key": "sports___exercise",
+    "label": "Sports & Exercise",
+    "icon": "📁",
+    "color": "#888888",
+    "group": "community",
+    "order": 12,
+    "keywords": [
+      "Run",
+      "Walk",
+      "5k",
+      "10k",
+      "Bike",
+      "bicycle",
+      "race",
+      "yoga",
+      "pilates",
+      "tai chi"
+    ]
+  },
+  {
     "key": "social",
     "label": "Social & Gatherings",
     "icon": "🎉",
     "color": "#b03070",
     "group": "community",
-    "order": 12,
+    "order": 13,
     "keywords": [
       "party",
       "bash",
       "gala",
       "celebration",
-      "fun run",
-      "\\b5k\\b",
-      "10k",
       "pub crawl",
       "wine.*walk",
       "wine.*stroll",
@@ -462,7 +481,7 @@
     "icon": "🏠",
     "color": "#5c7a3e",
     "group": "government",
-    "order": 13,
+    "order": 14,
     "keywords": [
       "homebuyer",
       "homebuying",
@@ -487,7 +506,7 @@
     "icon": "📌",
     "color": "#5A5A5A",
     "group": "community",
-    "order": 14,
+    "order": 15,
     "keywords": []
   }
 ]

@@ -3,8 +3,9 @@ import type { CalEvent } from "../lib/calendarUtils";
 import {
   fmtDayNum, fmtMonthShort, fmtWeekday, fmtTime, fmtDuration, isToday, CATEGORY_ORDER, CATEGORY_GROUPS, parseLocalDate
 } from "../lib/calendarUtils";
-import { MapPin, Clock, ExternalLink, User, Calendar, AlarmClock } from "lucide-react";
+import { MapPin, Clock, ExternalLink, User, Calendar, AlarmClock, X } from "lucide-react";
 import { useTheme } from "../lib/theme";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 interface Props {
   grouped: Record<string, CalEvent[]>;
@@ -17,10 +18,14 @@ function EventPopup({
   ev,
   categoryColor,
   rowRef,
+  isMobile,
+  onClose,
 }: {
   ev: CalEvent;
   categoryColor: string;
   rowRef: React.RefObject<HTMLDivElement | null>;
+  isMobile?: boolean;
+  onClose?: () => void;
 }) {
   const { theme } = useTheme();
   const popupRef = useRef<HTMLDivElement>(null);
@@ -34,6 +39,18 @@ function EventPopup({
     const viewH = window.innerHeight;
     const GAP = 12;
 
+    if (isMobile) {
+      // Mobile: horizontally centered (clamped), positioned below the row
+      // (or above if there isn't room below) — left/right placement doesn't
+      // work when the row is nearly as wide as the viewport itself.
+      const left = Math.max(8, Math.min((viewW - popup.width) / 2, viewW - popup.width - 8));
+      let top = row.bottom + GAP;
+      if (top + popup.height > viewH - 8) top = row.top - popup.height - GAP;
+      top = Math.max(8, Math.min(top, viewH - popup.height - 8));
+      setPos({ top, left });
+      return;
+    }
+
     // Prefer right; fall back to left
     let left = row.right + GAP;
     if (left + popup.width > viewW - 8) left = row.left - popup.width - GAP;
@@ -43,7 +60,7 @@ function EventPopup({
     top = Math.max(8, Math.min(top, viewH - popup.height - 8));
 
     setPos({ top, left });
-  }, [rowRef]);
+  }, [rowRef, isMobile]);
 
   const dur = fmtDuration(ev.start, ev.end, ev.isAllDay);
   const timeStr = ev.isAllDay
@@ -56,7 +73,8 @@ function EventPopup({
       style={{
         position: "fixed",
         zIndex: 9999,
-        width: 320,
+        width: isMobile ? "calc(100vw - 32px)" : 320,
+        maxWidth: 320,
         top: pos ? pos.top : -9999,
         left: pos ? pos.left : -9999,
         background: theme.popupBg,
@@ -65,12 +83,47 @@ function EventPopup({
         boxShadow: theme.mode === "dark"
           ? "0 0 0 1px #000, 0 12px 48px rgba(0,0,0,0.85), 0 2px 10px rgba(0,0,0,0.6)"
           : "0 0 0 1px rgba(0,0,0,0.08), 0 12px 48px rgba(0,0,0,0.22), 0 2px 10px rgba(0,0,0,0.12)",
-        pointerEvents: "none",
+        pointerEvents: isMobile ? "auto" : "none",
         overflow: "hidden",
       }}
     >
-      {/* Colour bar — mimics GCal's left accent bar at top */}
-      <div style={{ height: 6, background: categoryColor }} />
+      {/* Colour bar — mimics GCal's left accent bar at top; on mobile doubles as a close button */}
+      {isMobile ? (
+        <div
+          onClick={onClose}
+          style={{
+            height: 6,
+            background: categoryColor,
+            cursor: "pointer",
+          }}
+        />
+      ) : (
+        <div style={{ height: 6, background: categoryColor }} />
+      )}
+      {isMobile && (
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          title="Close"
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            width: 26,
+            height: 26,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 8,
+            border: "none",
+            background: theme.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+            color: theme.textMuted,
+            cursor: "pointer",
+          }}
+        >
+          <X size={14} />
+        </button>
+      )}
 
       {/* Header */}
       <div style={{ padding: "14px 16px 10px" }}>
@@ -177,16 +230,30 @@ function EventPopup({
           <div style={{ fontSize: "0.8rem", color: theme.textMuted }}>{ev.categoryLabel}</div>
         </div>
 
-        {/* GCal link */}
+        {/* GCal link — a real anchor on mobile so it's tappable inside the popup */}
         {ev.htmlLink && (
           <>
             <div style={{ height: 1, background: theme.border }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <ExternalLink size={13} style={{ color: categoryColor }} />
-              <span style={{ fontSize: "0.8rem", fontWeight: 600, color: categoryColor }}>
-                Open in Google Calendar
-              </span>
-            </div>
+            {isMobile ? (
+              <a
+                href={ev.htmlLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
+              >
+                <ExternalLink size={13} style={{ color: categoryColor }} />
+                <span style={{ fontSize: "0.8rem", fontWeight: 600, color: categoryColor }}>
+                  Open in Google Calendar
+                </span>
+              </a>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <ExternalLink size={13} style={{ color: categoryColor }} />
+                <span style={{ fontSize: "0.8rem", fontWeight: 600, color: categoryColor }}>
+                  Open in Google Calendar
+                </span>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -199,6 +266,7 @@ function EventPopup({
 ───────────────────────────────────────────── */
 function EventRow({ ev, categoryColor }: { ev: CalEvent; categoryColor: string }) {
   const { theme } = useTheme();
+  const isMobile = useIsMobile();
   const today = isToday(ev.start);
   const [hovered, setHovered] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -207,12 +275,37 @@ function EventRow({ ev, categoryColor }: { ev: CalEvent; categoryColor: string }
   // Delay popup by 300ms to avoid flicker on quick mouse-overs
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleEnter = useCallback(() => {
+    if (isMobile) return; // no hover on touch devices
     timerRef.current = setTimeout(() => setHovered(true), 300);
-  }, []);
+  }, [isMobile]);
   const handleLeave = useCallback(() => {
+    if (isMobile) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     setHovered(false);
-  }, []);
+  }, [isMobile]);
+
+  // On mobile, tapping the row shows the detail popup instead of navigating
+  // straight to Google Calendar (which would otherwise open off-screen/
+  // unexpectedly and skip the preview entirely). Tapping outside closes it.
+  useEffect(() => {
+    if (!isMobile || !hovered) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (rowRef.current && !rowRef.current.contains(e.target as Node)) {
+        setHovered(false);
+      }
+    };
+    document.addEventListener("click", handleOutside, true);
+    return () => document.removeEventListener("click", handleOutside, true);
+  }, [isMobile, hovered]);
+
+  const handleRowClick = (e: React.MouseEvent) => {
+    if (isMobile) {
+      e.preventDefault();
+      setHovered(v => !v);
+      return;
+    }
+    if (ev.htmlLink) window.open(ev.htmlLink, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <>
@@ -231,11 +324,11 @@ function EventRow({ ev, categoryColor }: { ev: CalEvent; categoryColor: string }
           // Left accent bar via box-shadow so it doesn't shift layout
           boxShadow: hovered ? `inset 3px 0 0 ${categoryColor}` : "none",
           transition: "background 0.18s, border-color 0.18s, box-shadow 0.18s",
-          cursor: ev.htmlLink ? "pointer" : "default",
+          cursor: "pointer",
         }}
         onMouseEnter={handleEnter}
         onMouseLeave={handleLeave}
-        onClick={() => { if (ev.htmlLink) window.open(ev.htmlLink, "_blank", "noopener,noreferrer"); }}
+        onClick={handleRowClick}
       >
         {/* Date column */}
         <div
@@ -335,7 +428,15 @@ function EventRow({ ev, categoryColor }: { ev: CalEvent; categoryColor: string }
       </div>
 
       {/* Portal-like fixed popup — rendered outside the row so it doesn't affect layout */}
-      {hovered && <EventPopup ev={ev} categoryColor={categoryColor} rowRef={rowRef} />}
+      {hovered && (
+        <EventPopup
+          ev={ev}
+          categoryColor={categoryColor}
+          rowRef={rowRef}
+          isMobile={isMobile}
+          onClose={() => setHovered(false)}
+        />
+      )}
     </>
   );
 }

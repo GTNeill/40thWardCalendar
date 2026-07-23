@@ -4,8 +4,9 @@ import {
   parseLocalDate, fmtTime, fmtDuration, fmtWeekday, fmtDayNum, fmtMonthShort,
   isSameDay, CATEGORY_ORDER,
 } from "../lib/calendarUtils";
-import { Clock, MapPin, User, Calendar, AlarmClock, ExternalLink } from "lucide-react";
+import { Clock, MapPin, User, Calendar, AlarmClock, ExternalLink, X } from "lucide-react";
 import { useTheme } from "../lib/theme";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 type RangeUnit = "week" | "month";
 
@@ -22,9 +23,13 @@ const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 function EventPopup({
   ev,
   anchorRef,
+  isMobile,
+  onClose,
 }: {
   ev: CalEvent;
   anchorRef: React.RefObject<HTMLElement | null>;
+  isMobile?: boolean;
+  onClose?: () => void;
 }) {
   const { theme } = useTheme();
   const popupRef = useRef<HTMLDivElement>(null);
@@ -38,12 +43,22 @@ function EventPopup({
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const GAP = 10;
+
+    if (isMobile) {
+      const left = Math.max(8, Math.min((vw - popup.width) / 2, vw - popup.width - 8));
+      let top = anchor.bottom + GAP;
+      if (top + popup.height > vh - 8) top = anchor.top - popup.height - GAP;
+      top = Math.max(8, Math.min(top, vh - popup.height - 8));
+      setPos({ top, left });
+      return;
+    }
+
     let left = anchor.right + GAP;
     if (left + popup.width > vw - 8) left = anchor.left - popup.width - GAP;
     let top = anchor.top + anchor.height / 2 - popup.height / 2;
     top = Math.max(8, Math.min(top, vh - popup.height - 8));
     setPos({ top, left });
-  }, [anchorRef]);
+  }, [anchorRef, isMobile]);
 
   const dur = fmtDuration(ev.start, ev.end, ev.isAllDay);
   const timeStr = ev.isAllDay
@@ -56,7 +71,8 @@ function EventPopup({
       style={{
         position: "fixed",
         zIndex: 9999,
-        width: 300,
+        width: isMobile ? "calc(100vw - 32px)" : 300,
+        maxWidth: 300,
         top: pos ? pos.top : -9999,
         left: pos ? pos.left : -9999,
         background: theme.popupBg,
@@ -66,11 +82,35 @@ function EventPopup({
           theme.mode === "dark"
             ? "0 0 0 1px #000, 0 12px 48px rgba(0,0,0,0.85), 0 2px 10px rgba(0,0,0,0.6)"
             : "0 0 0 1px rgba(0,0,0,0.08), 0 12px 48px rgba(0,0,0,0.22), 0 2px 10px rgba(0,0,0,0.12)",
-        pointerEvents: "none",
+        pointerEvents: isMobile ? "auto" : "none",
         overflow: "hidden",
       }}
     >
-      <div style={{ height: 5, background: cat }} />
+      <div style={{ height: 5, background: cat, cursor: isMobile ? "pointer" : "default" }} onClick={isMobile ? onClose : undefined} />
+      {isMobile && (
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          title="Close"
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            width: 24,
+            height: 24,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 7,
+            border: "none",
+            background: theme.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+            color: theme.textMuted,
+            cursor: "pointer",
+          }}
+        >
+          <X size={13} />
+        </button>
+      )}
       <div style={{ padding: "12px 14px 8px" }}>
         <div style={{ fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: cat, marginBottom: 3 }}>
           {ev.categoryIcon} {ev.categoryLabel}
@@ -125,10 +165,22 @@ function EventPopup({
         {ev.htmlLink && (
           <>
             <div style={{ height: 1, background: theme.border }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <ExternalLink size={12} style={{ color: cat }} />
-              <span style={{ fontSize: "0.75rem", fontWeight: 600, color: cat }}>Open in Google Calendar</span>
-            </div>
+            {isMobile ? (
+              <a
+                href={ev.htmlLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", gap: 7, textDecoration: "none" }}
+              >
+                <ExternalLink size={12} style={{ color: cat }} />
+                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: cat }}>Open in Google Calendar</span>
+              </a>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <ExternalLink size={12} style={{ color: cat }} />
+                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: cat }}>Open in Google Calendar</span>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -139,18 +191,34 @@ function EventPopup({
 /* ─── Event Chip ─────────────────────────────────────────────── */
 function EventChip({ ev }: { ev: CalEvent }) {
   const { theme } = useTheme();
+  const isMobile = useIsMobile();
   const [hovered, setHovered] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cat = ev.categoryColor;
 
   const enter = useCallback(() => {
+    if (isMobile) return;
     timerRef.current = setTimeout(() => setHovered(true), 280);
-  }, []);
+  }, [isMobile]);
   const leave = useCallback(() => {
+    if (isMobile) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     setHovered(false);
-  }, []);
+  }, [isMobile]);
+
+  // Tapping a chip on mobile shows the detail popup instead of navigating
+  // straight to Google Calendar; tapping outside closes it.
+  useEffect(() => {
+    if (!isMobile || !hovered) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setHovered(false);
+      }
+    };
+    document.addEventListener("click", handleOutside, true);
+    return () => document.removeEventListener("click", handleOutside, true);
+  }, [isMobile, hovered]);
 
   return (
     <>
@@ -167,10 +235,17 @@ function EventChip({ ev }: { ev: CalEvent }) {
           marginBottom: 2,
           background: hovered ? `${cat}33` : `${cat}1a`,
           borderLeft: `2px solid ${cat}`,
-          cursor: ev.htmlLink ? "pointer" : "default",
+          cursor: "pointer",
           transition: "background 0.15s",
         }}
-        onClick={() => { if (ev.htmlLink) window.open(ev.htmlLink, "_blank", "noopener,noreferrer"); }}
+        onClick={(e) => {
+          if (isMobile) {
+            e.preventDefault();
+            setHovered(v => !v);
+            return;
+          }
+          if (ev.htmlLink) window.open(ev.htmlLink, "_blank", "noopener,noreferrer");
+        }}
       >
         {/* dot / diamond — flex-shrink so it stays tiny */}
         <span style={{ fontSize: "0.55rem", color: cat, fontWeight: 800, flexShrink: 0, marginTop: "0.2em" }}>
@@ -196,7 +271,14 @@ function EventChip({ ev }: { ev: CalEvent }) {
           {ev.title}
         </span>
       </div>
-      {hovered && <EventPopup ev={ev} anchorRef={ref as React.RefObject<HTMLElement | null>} />}
+      {hovered && (
+        <EventPopup
+          ev={ev}
+          anchorRef={ref as React.RefObject<HTMLElement | null>}
+          isMobile={isMobile}
+          onClose={() => setHovered(false)}
+        />
+      )}
     </>
   );
 }

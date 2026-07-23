@@ -12,6 +12,7 @@ import SkeletonTimeline from "../components/SkeletonTimeline";
 import SearchResults from "../components/SearchResults";
 import { timeSince, getRange, getRollingRange, fmtRangeLabel, toISO, type RangeUnit } from "../lib/calendarUtils";
 import { useTheme } from "../lib/theme";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 type Tab = "cards" | "timeline";
 
@@ -125,6 +126,7 @@ function ZoomSlider({
 
 export default function Index() {
   const { theme, toggle } = useTheme();
+  const isMobile = useIsMobile();
   const [tab, setTab] = useState<Tab>("cards");
   const [unit, setUnit] = useState<RangeUnit>("month");
   const [offset, setOffset] = useState(0);
@@ -172,7 +174,11 @@ export default function Index() {
   };
 
   const Divider = () => (
-    <div className="w-px self-stretch my-3 flex-shrink-0" style={{ background: theme.border }} />
+    // Hidden on mobile — with flex-wrap active, a vertical divider between
+    // wrapped groups ends up floating on its own line, which looks broken.
+    isMobile ? null : (
+      <div className="w-px self-stretch my-3 flex-shrink-0" style={{ background: theme.border }} />
+    )
   );
 
   return (
@@ -191,7 +197,7 @@ export default function Index() {
           backdropFilter: "blur(8px)",
         }}
       >
-        <div style={{ maxWidth: 1152, margin: "0 auto", padding: "0 48px" }}>
+        <div style={{ maxWidth: 1152, margin: "0 auto", padding: isMobile ? "0 16px" : "0 48px" }}>
 
           {/* Row 1: Logo area */}
           <div className="flex items-end pt-5 pb-2">
@@ -222,23 +228,20 @@ export default function Index() {
             </div>
           </div>
 
-          {/* Row 2: Range label left, controls right */}
-          <div className="flex items-center justify-between pb-3" style={{ gap: "10px" }}>
+          {/* Row 2: Range label — its own line so it never gets squashed by controls */}
+          <div className="pb-2">
+            <p className="text-sm font-semibold" style={{ color: theme.textPrimary, fontFamily: theme.fontBody }}>
+              {rangeLabel}
+            </p>
+            {dataUpdatedAt > 0 && (
+              <span className="text-xs" style={{ color: theme.textMuted, opacity: 0.6 }}>
+                Updated {timeSince(new Date(dataUpdatedAt).toISOString())}
+              </span>
+            )}
+          </div>
 
-            {/* ── Range label + updated timestamp ── */}
-            <div>
-              <p className="text-sm font-semibold" style={{ color: theme.textPrimary, fontFamily: theme.fontBody }}>
-                {rangeLabel}
-              </p>
-              {dataUpdatedAt > 0 && (
-                <span className="text-xs" style={{ color: theme.textMuted, opacity: 0.6 }}>
-                  Updated {timeSince(new Date(dataUpdatedAt).toISOString())}
-                </span>
-              )}
-            </div>
-
-            {/* ── Right-side controls ── */}
-            <div className="flex items-center" style={{ gap: "10px" }}>
+          {/* Row 3: Controls — wraps onto multiple lines instead of overflowing/scrolling */}
+          <div className="flex items-center flex-wrap pb-3" style={{ gap: "10px", rowGap: "8px" }}>
 
             {/* ── Week / Month toggle ── */}
             <div
@@ -378,16 +381,15 @@ export default function Index() {
               {theme.mode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
-            </div>{/* end right-side controls */}
-          </div>{/* end row 2 */}
+          </div>{/* end row 3 controls */}
         </div>
       </header>
 
       {/* ── Zoom slider — floats over the content page, not the header ── */}
-      <ZoomSlider zoom={zoom} onChange={setZoom} top={headerHeight} theme={theme} />
+      {!isMobile && <ZoomSlider zoom={zoom} onChange={setZoom} top={headerHeight} theme={theme} />}
 
       {/* ── Main ── */}
-      <main style={{ maxWidth: 1152, margin: "0 auto", padding: "40px 48px", zoom: `${zoom}%` as any }}>
+      <main style={{ maxWidth: 1152, margin: "0 auto", padding: isMobile ? "20px 16px" : "40px 48px", zoom: `${isMobile ? 100 : zoom}%` as any }}>
 
         {/* Error */}
         {isError && (
@@ -491,7 +493,7 @@ export default function Index() {
           borderTop: `4px solid ${theme.teal}`,
         }}
       >
-        <div style={{ maxWidth: 1152, margin: "0 auto", padding: "0 48px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ maxWidth: 1152, margin: "0 auto", padding: isMobile ? "0 16px" : "0 48px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
           <p className="text-xs" style={{ color: "rgba(255,255,255,0.55)", fontFamily: theme.fontBody }}>
             40th Ward of Chicago · Alderperson Andre Vasquez
           </p>
