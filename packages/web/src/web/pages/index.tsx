@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   RefreshCw, LayoutGrid, CalendarDays, AlertCircle,
-  ChevronLeft, ChevronRight, Sun, Moon, ZoomIn, ZoomOut, Search, X
+  ChevronLeft, ChevronRight, Sun, Moon, ZoomIn, ZoomOut, Search, X, ExternalLink
 } from "lucide-react";
 import { useEvents } from "../hooks/useEvents";
 import { useQueryClient } from "@tanstack/react-query";
@@ -407,6 +407,32 @@ export default function Index() {
             >
               {theme.mode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
+
+            {/* ── Submit Your Event — pinned to the right margin of the control bar ── */}
+            <a
+              href="https://airtable.com/appDK75qZXFYekjMt/pag5fZSZB51xIq4vi/form"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center rounded font-bold"
+              style={{
+                marginLeft: "auto",
+                gap: "8px",
+                fontFamily: theme.fontBody,
+                padding: "9px 18px",
+                fontSize: "0.85rem",
+                letterSpacing: "0.02em",
+                background: theme.teal,
+                color: "#ffffff",
+                textDecoration: "none",
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = "0.85"; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
+              title="Submit your event to the 40th Ward calendar"
+            >
+              Submit Your Event
+              <ExternalLink size={14} />
+            </a>
 
           </div>{/* end row 3 controls */}
         </div>
