@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import type { CalEvent } from "../lib/calendarUtils";
 import {
-  fmtDayNum, fmtMonthShort, fmtWeekday, fmtTime, fmtDuration, isToday, CATEGORY_ORDER, CATEGORY_GROUPS, parseLocalDate
+  fmtDayNum, fmtMonthShort, fmtWeekday, fmtTime, fmtDuration, isToday, parseLocalDate
 } from "../lib/calendarUtils";
 import { MapPin, Clock, ExternalLink, User, Calendar, AlarmClock, X } from "lucide-react";
 import { useTheme } from "../lib/theme";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { useCategories, buildCategoryGroups } from "../hooks/useCategories";
 
 interface Props {
   grouped: Record<string, CalEvent[]>;
@@ -529,6 +530,7 @@ const ROW_HEIGHT_PX = 90;
 export default function CategoryCards({ grouped }: Props) {
   const { theme } = useTheme();
   const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
+  const { data: categoriesData } = useCategories();
 
   // Today at midnight for filtering past events
   const todayMid = useMemo(() => {
@@ -537,7 +539,21 @@ export default function CategoryCards({ grouped }: Props) {
     return d;
   }, []);
 
-  const allCats = CATEGORY_ORDER.filter(k => (grouped[k]?.length ?? 0) > 0);
+  // Live order + groups straight from categories.json (via /admincat), not
+  // a hardcoded frontend list — stays correct automatically when categories
+  // are added, renamed, reordered, or moved between groups.
+  const categoryOrder = useMemo(
+    () => [...(categoriesData ?? [])].sort((a, b) => a.order - b.order).map(c => c.key),
+    [categoriesData]
+  );
+  const categoryGroups = useMemo(
+    () => buildCategoryGroups(categoriesData ?? []),
+    [categoriesData]
+  );
+
+  if (!categoriesData) return null; // brief loading window before category order/groups are known
+
+  const allCats = categoryOrder.filter(k => (grouped[k]?.length ?? 0) > 0);
 
   const catMeta: Record<string, { icon: string; label: string; color: string }> = {};
   for (const evList of Object.values(grouped)) {
@@ -584,7 +600,7 @@ export default function CategoryCards({ grouped }: Props) {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-          {CATEGORY_GROUPS.map(group => {
+          {categoryGroups.map(group => {
             const groupCats = visibleCats.filter(k => group.keys.includes(k));
             if (groupCats.length === 0) return null;
             return (

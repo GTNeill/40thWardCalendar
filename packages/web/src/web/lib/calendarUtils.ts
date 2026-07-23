@@ -15,21 +15,10 @@ export interface CalEvent {
   categoryColor: string;
 }
 
-export const CATEGORY_ORDER = [
-  "ward", "zoning", "publicSafety", "community", "environment",
-  "arts", "health", "education", "immigration", "food", "celebrations", "social", "housing", "ainslieArts", "other"
-];
-
-export const CATEGORY_GROUPS: { label: string; keys: string[] }[] = [
-  {
-    label: "Your Government",
-    keys: ["ward", "zoning", "immigration", "housing"],
-  },
-  {
-    label: "Your Community",
-    keys: ["publicSafety", "community", "environment", "arts", "health", "education", "food", "celebrations", "social", "ainslieArts", "other"],
-  },
-];
+// Category order and grouping now come from the live /api/categories data
+// (see hooks/useCategories.ts) instead of being hardcoded here — this used
+// to silently drift out of sync every time a category was added, renamed,
+// reordered, or moved between groups via /admincat.
 
 export type RangeUnit = "week" | "month";
 

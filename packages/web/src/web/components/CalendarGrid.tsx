@@ -1,12 +1,13 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import type { CalEvent } from "../lib/calendarUtils";
 import {
   parseLocalDate, fmtTime, fmtDuration, fmtWeekday, fmtDayNum, fmtMonthShort,
-  isSameDay, CATEGORY_ORDER,
+  isSameDay,
 } from "../lib/calendarUtils";
 import { Clock, MapPin, User, Calendar, AlarmClock, ExternalLink, X } from "lucide-react";
 import { useTheme } from "../lib/theme";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { useCategories } from "../hooks/useCategories";
 
 type RangeUnit = "week" | "month";
 
@@ -496,14 +497,21 @@ interface FilterBarProps {
 
 function CategoryFilterBar({ events, selected, onChange }: FilterBarProps) {
   const { theme } = useTheme();
+  const { data: categoriesData } = useCategories();
 
-  // Derive which categories appear, ordered by CATEGORY_ORDER
+  // Live order straight from categories.json, not a hardcoded frontend list.
+  const categoryOrder = useMemo(
+    () => [...(categoriesData ?? [])].sort((a, b) => a.order - b.order).map(c => c.key),
+    [categoriesData]
+  );
+
+  // Derive which categories appear, ordered by the live category order
   const catMap = events.reduce((map, ev) => {
     if (!map.has(ev.category))
       map.set(ev.category, { key: ev.category, label: ev.categoryLabel, icon: ev.categoryIcon, color: ev.categoryColor });
     return map;
   }, new Map<string, { key: string; label: string; icon: string; color: string }>());
-  const cats = CATEGORY_ORDER.filter(k => catMap.has(k)).map(k => catMap.get(k)!);
+  const cats = categoryOrder.filter(k => catMap.has(k)).map(k => catMap.get(k)!);
 
   const allSelected = selected.size === 0;
 
